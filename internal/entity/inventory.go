@@ -1,7 +1,6 @@
-package models
+package entity
 
 import (
-	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -63,10 +62,4 @@ type Inventory struct {
 	VMs               int      `json:"vms"`
 	VMsMigratable     int      `json:"vms_migratable"`
 	MigrationWarnings []string `json:"migration_warnings`
-}
-
-type Event struct {
-	Index string
-	ID    string
-	Body  io.ReadSeeker
 }
