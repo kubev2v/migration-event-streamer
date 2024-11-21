@@ -45,7 +45,7 @@ func (m *Manager) CreateKafkaPipeline(ctx context.Context, consumer Consumer, wr
 	}
 
 	pipeline := NewPipeline[cloudevents.Event](messages, writer, worker)
-	pipeline.Start(ctx)
+	go pipeline.Start(ctx)
 
 	m.kafkaPipelines = append(m.kafkaPipelines, pipeline)
 

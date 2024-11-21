@@ -2,15 +2,15 @@ package worker
 
 import (
 	"context"
-	"fmt"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/tupyy/migration-event-streamer/internal/entity"
 	"github.com/tupyy/migration-event-streamer/internal/pipeline"
+	"go.uber.org/zap"
 )
 
 func InventoryWorker(ctx context.Context, e cloudevents.Event, w pipeline.Writer[entity.Event]) error {
-	fmt.Println(e)
+	zap.S().Debugw("write to elastic", "event", e)
 	return nil
 }
 

@@ -51,10 +51,24 @@ func main() {
 		zap.S().Fatalf("failed to create kafka consumer: %s", err)
 	}
 
+	consumer1, err := dt.CreateKafkaConsumer("test-output", "test-output-consumer-group")
+	if err != nil {
+		zap.S().Fatalf("failed to create kafka consumer: %s", err)
+	}
+
+	producer, err := dt.CreateKafkaProducer("test-output")
+	if err != nil {
+		zap.S().Fatalf("failed to create kafka producer: %s", err)
+	}
+
 	m := pipeline.NewManager()
 
-	if err := m.CreateElasticPipeline(ctx, consumer, dt.ElasticRepository(), worker.InventoryWorker); err != nil {
-		zap.S().Fatalf("failed to create elastic pipeline: %w", err)
+	if err := m.CreateElasticPipeline(ctx, consumer1, dt.ElasticRepository(), worker.InventoryWorker); err != nil {
+		zap.S().Fatalf("failed to create elastic pipeline: %s", err)
+	}
+
+	if err := m.CreateKafkaPipeline(ctx, consumer, producer, worker.KafkaWorker); err != nil {
+		zap.S().Fatalf("failed to create kafka pipeline: %s", err)
 	}
 
 	<-ctx.Done()
