@@ -36,12 +36,13 @@ func (d *Pipeline[T]) Start(ctx context.Context) {
 
 	for msg := range d.messages {
 		// TODO add retry and metrics
-		// process the message
 		if err := d.worker(ctx, msg.Event, d.writer); err != nil {
 			zap.S().Warnw("failed to process message", "message", msg, "error", err)
 		}
 
 		// commit message
 		close(msg.CommitCh)
+
+		zap.S().Infow("message consumed", "pipeline", d.name, "id", msg.Event.Context.GetID(), "topic", msg.Event.Extensions()["kafkatopic"])
 	}
 }

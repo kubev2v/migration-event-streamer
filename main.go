@@ -33,42 +33,25 @@ func main() {
 		ClientID: "test-client",
 	}
 
-	dt, err := datastore.NewDatastore(elasticConfig, kConfig)
-	if err != nil {
-		panic(err)
-	}
-
-	indexes := []string{"os", "datastore", "inventory"}
-	if err := dt.CreateIndexes(elasticConfig.Index, indexes); err != nil {
-		panic(err)
+	dt := datastore.NewDatastore().
+		WithElasticRepository(elasticConfig, []string{"index1", "index2"}).
+		WithKafkaConsumer("test", kConfig, "test", "test-consumer-group").
+		WithKafkaConsumer("test1", kConfig, "test-output", "another-group").
+		WithKafkaProducer("producer", kConfig)
+	if dt.Build(); err != nil {
+		zap.S().Fatal(err)
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGQUIT)
 	defer cancel()
 
-	consumer, err := dt.CreateKafkaConsumer("test", "test-consumer-group")
-	if err != nil {
-		zap.S().Fatalf("failed to create kafka consumer: %s", err)
-	}
+	m := pipeline.NewManager().
+		ElasticPipeline(ctx, "elastic", dt.MustHaveConsumer("test1"), dt.ElasticRepository(), worker.InventoryWorker).
+		Router(ctx, dt.MustHaveConsumer("test"), dt.MustHaveProducer("producer"), map[string]string{"sample.basic.event": "test-output"})
 
-	consumer1, err := dt.CreateKafkaConsumer("test-output", "test-output-consumer-group")
-	if err != nil {
-		zap.S().Fatalf("failed to create kafka consumer: %s", err)
-	}
-
-	producer, err := dt.CreateKafkaProducer("test-output")
-	if err != nil {
-		zap.S().Fatalf("failed to create kafka producer: %s", err)
-	}
-
-	m := pipeline.NewManager()
-
-	if err := m.CreateElasticPipeline(ctx, consumer1, dt.ElasticRepository(), worker.InventoryWorker); err != nil {
-		zap.S().Fatalf("failed to create elastic pipeline: %s", err)
-	}
-
-	if err := m.CreateKafkaPipeline(ctx, consumer, producer, worker.KafkaWorker); err != nil {
-		zap.S().Fatalf("failed to create kafka pipeline: %s", err)
+	if err := m.Build(ctx); err != nil {
+		zap.S().Infof("failed to create pipeline manager: %v", err)
+		cancel()
 	}
 
 	<-ctx.Done()
@@ -83,9 +66,6 @@ func main() {
 	g, ctx := errgroup.WithContext(closeCtx)
 	g.Go(func() error {
 		return dt.Close(ctx)
-	})
-	g.Go(func() error {
-		return m.Close(ctx)
 	})
 
 	if err := g.Wait(); err != nil {
