@@ -4,7 +4,7 @@ import (
 	"context"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/tupyy/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"go.uber.org/zap"
 )
 

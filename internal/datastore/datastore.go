@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/IBM/sarama"
-	"github.com/tupyy/migration-event-streamer/internal/config"
-	"github.com/tupyy/migration-event-streamer/internal/datastore/elastic"
-	"github.com/tupyy/migration-event-streamer/internal/datastore/kafka"
-	pkgKafka "github.com/tupyy/migration-event-streamer/pkg/kafka"
+	"github.com/kubev2v/migration-event-streamer/internal/config"
+	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
+	"github.com/kubev2v/migration-event-streamer/internal/datastore/kafka"
+	pkgKafka "github.com/kubev2v/migration-event-streamer/pkg/kafka"
 	"go.uber.org/zap"
 )
 

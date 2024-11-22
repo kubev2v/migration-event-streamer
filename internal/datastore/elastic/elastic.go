@@ -7,8 +7,8 @@ import (
 
 	elastic "github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
-	"github.com/tupyy/migration-event-streamer/internal/config"
-	"github.com/tupyy/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/config"
+	"github.com/kubev2v/migration-event-streamer/internal/entity"
 )
 
 // ElasticRepository implements datastore.Writer interface

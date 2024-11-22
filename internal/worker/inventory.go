@@ -4,8 +4,8 @@ import (
 	"context"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/tupyy/migration-event-streamer/internal/entity"
-	"github.com/tupyy/migration-event-streamer/internal/pipeline"
+	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
 )
 
 func InventoryWorker(ctx context.Context, e cloudevents.Event, w pipeline.Writer[entity.Event]) error {
