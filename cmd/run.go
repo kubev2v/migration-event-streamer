@@ -12,11 +12,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/tupyy/migration-event-streamer/internal/config"
-	"github.com/tupyy/migration-event-streamer/internal/datastore"
-	"github.com/tupyy/migration-event-streamer/internal/logger"
-	"github.com/tupyy/migration-event-streamer/internal/pipeline"
-	"github.com/tupyy/migration-event-streamer/internal/worker"
+	"github.com/kubev2v/migration-event-streamer/internal/config"
+	"github.com/kubev2v/migration-event-streamer/internal/datastore"
+	"github.com/kubev2v/migration-event-streamer/internal/logger"
+	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
+	"github.com/kubev2v/migration-event-streamer/internal/worker"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -65,7 +65,8 @@ var runCmd = &cobra.Command{
 
 		<-ctx.Done()
 
-		closeCtx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer closeCancel()
 
 		zap.S().Info("shutting down...")
 		defer func() {

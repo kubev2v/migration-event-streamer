@@ -1,4 +1,4 @@
-module github.com/tupyy/migration-event-streamer
+module github.com/kubev2v/migration-event-streamer
 
 go 1.22.2
 
