@@ -8,14 +8,18 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/cloudevents/sdk-go/protocol/kafka_sarama/v2"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/client"
 	logCtx "github.com/cloudevents/sdk-go/v2/context"
 	"github.com/tupyy/migration-event-streamer/internal/config"
+	"github.com/tupyy/migration-event-streamer/internal/entity"
 	"go.uber.org/zap"
 )
 
 type Consumer struct {
-	client   cloudevents.Client
-	protocol *kafka_sarama.Protocol
+	client           cloudevents.Client
+	protocol         *kafka_sarama.Protocol
+	done             chan chan any
+	receiverCancelFn context.CancelFunc
 }
 
 func NewConsumer(config config.KafkaConfig, topic, consumerGroupID string) (*Consumer, error) {
@@ -58,7 +62,7 @@ func NewConsumer(config config.KafkaConfig, topic, consumerGroupID string) (*Con
 		return nil, fmt.Errorf("failed to create protocol: %w", err)
 	}
 
-	c, err := cloudevents.NewClient(protocol, cloudevents.WithTimeNow(), cloudevents.WithUUIDs())
+	c, err := cloudevents.NewClient(protocol, cloudevents.WithTimeNow(), cloudevents.WithUUIDs(), client.WithBlockingCallback(), client.WithPollGoroutines(1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
@@ -69,17 +73,42 @@ func NewConsumer(config config.KafkaConfig, topic, consumerGroupID string) (*Con
 	}, nil
 }
 
-func (kc *Consumer) Consume(ctx context.Context, messages chan cloudevents.Event) error {
+func (kc *Consumer) Consume(ctx context.Context, messages chan entity.Message) error {
 	var err error
-	lCtx := logCtx.WithLogger(ctx, zap.S())
+	rcvCtx, cancel := context.WithCancel(logCtx.WithLogger(ctx, zap.S()))
+	kc.receiverCancelFn = cancel
+	kc.done = make(chan chan any)
+
 	go func() {
-		err = kc.client.StartReceiver(lCtx, func(event cloudevents.Event) {
-			messages <- event
+		err = kc.client.StartReceiver(rcvCtx, func(event cloudevents.Event) {
+			msg := entity.NewMessage(event)
+			messages <- msg
+
+			fmt.Println("2")
+			select {
+			case <-msg.CommitCh:
+			case <-rcvCtx.Done():
+			}
 		})
+		close(messages)
+		close(<-kc.done)
+		zap.S().Info("consumer closed")
 	}()
+
 	return err
 }
 
 func (kc *Consumer) Close(ctx context.Context) error {
-	return kc.protocol.Close(ctx)
+	err := kc.protocol.Close(ctx)
+	if kc.done == nil {
+		return nil
+	}
+
+	kc.receiverCancelFn()
+
+	// wait for receiver to exit the loop
+	c := make(chan any)
+	kc.done <- c
+	<-c
+	return err
 }

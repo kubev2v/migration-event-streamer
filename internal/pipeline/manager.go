@@ -8,7 +8,7 @@ import (
 )
 
 type Consumer interface {
-	Consume(context.Context, chan cloudevents.Event) error
+	Consume(context.Context, chan entity.Message) error
 }
 
 type Manager struct {
@@ -23,13 +23,13 @@ func NewManager() *Manager {
 }
 
 // CreateElasticPipeline creates a pipeline which reads from kafka and writes to elastic.
-func (m *Manager) CreateElasticPipeline(ctx context.Context, consumer Consumer, writer Writer[entity.Event], worker Worker[entity.Event]) error {
-	messages := make(chan cloudevents.Event)
+func (m *Manager) CreateElasticPipeline(ctx context.Context, name string, consumer Consumer, writer Writer[entity.Event], worker Worker[entity.Event]) error {
+	messages := make(chan entity.Message)
 	if err := consumer.Consume(ctx, messages); err != nil {
 		return err
 	}
 
-	pipeline := NewPipeline[entity.Event](messages, writer, worker)
+	pipeline := NewPipeline[entity.Event](name, messages, writer, worker)
 	go pipeline.Start(ctx)
 
 	m.elasticPipelines = append(m.elasticPipelines, pipeline)
@@ -38,13 +38,13 @@ func (m *Manager) CreateElasticPipeline(ctx context.Context, consumer Consumer, 
 }
 
 // CreateKafkaPipeline creates a pipeline which reads from kafka and writes to kafka.
-func (m *Manager) CreateKafkaPipeline(ctx context.Context, consumer Consumer, writer Writer[cloudevents.Event], worker Worker[cloudevents.Event]) error {
-	messages := make(chan cloudevents.Event)
+func (m *Manager) CreateKafkaPipeline(ctx context.Context, name string, consumer Consumer, writer Writer[cloudevents.Event], worker Worker[cloudevents.Event]) error {
+	messages := make(chan entity.Message)
 	if err := consumer.Consume(ctx, messages); err != nil {
 		return err
 	}
 
-	pipeline := NewPipeline[cloudevents.Event](messages, writer, worker)
+	pipeline := NewPipeline[cloudevents.Event](name, messages, writer, worker)
 	go pipeline.Start(ctx)
 
 	m.kafkaPipelines = append(m.kafkaPipelines, pipeline)
@@ -53,12 +53,5 @@ func (m *Manager) CreateKafkaPipeline(ctx context.Context, consumer Consumer, wr
 }
 
 func (m *Manager) Close(ctx context.Context) error {
-	var err error
-	for _, p := range m.kafkaPipelines {
-		err = p.Close(ctx)
-	}
-	for _, p := range m.elasticPipelines {
-		err = p.Close(ctx)
-	}
-	return err
+	return nil
 }
