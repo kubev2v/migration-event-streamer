@@ -81,8 +81,8 @@ func (d *Datastore) WithKafkaProducer(name string, kConfig config.KafkaConfig) *
 }
 
 func (d *Datastore) Build() error {
-	for _, claim := range d.buildFns {
-		if err := claim(); err != nil {
+	for _, buildFn := range d.buildFns {
+		if err := buildFn(); err != nil {
 			return fmt.Errorf("failed to create datastore: %s", err)
 		}
 	}
