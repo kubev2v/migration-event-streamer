@@ -12,9 +12,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewElasticsearchClient(config config.ElasticSearchEnvConfig) (*elastic.Client, error) {
+func NewElasticsearchClient(config config.ElasticSearchConfig) (*elastic.Client, error) {
 	addresses := []string{
-		config.Address,
+		config.Host,
 	}
 	cfg := elastic.Config{
 		Addresses: addresses,
@@ -22,8 +22,8 @@ func NewElasticsearchClient(config config.ElasticSearchEnvConfig) (*elastic.Clie
 		Password:  config.Password,
 		Transport: &http.Transport{
 			MaxIdleConnsPerHost:   10,
-			ResponseHeaderTimeout: config.ResponseTimeout,
-			DialContext:           (&net.Dialer{Timeout: config.DialTimeout}).DialContext,
+			ResponseHeaderTimeout: config.GetResponseTimeout(),
+			DialContext:           (&net.Dialer{Timeout: config.GetDialTimeout()}).DialContext,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: config.SSLInsecureSkipVerify,
 				MinVersion:         tls.VersionTLS11,

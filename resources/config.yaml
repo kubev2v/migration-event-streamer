@@ -1,0 +1,21 @@
+pipelines:
+  - name: elastic
+    type: elastic
+    inputTopic: test_output
+router:
+  inputTopic: test
+  routes:
+    - eventType: sample.basic.event
+      topic: test_output
+    - eventType: sample.basic.other
+      topic: test_output_other
+kafka:
+  brokers:
+    - "localhost:9092"
+  clientID: "test-client"
+elastic:
+  indexes:
+    - test
+    - test1
+  host: "http://localhost:9200"
+  sslInsecureSkipVerify: true

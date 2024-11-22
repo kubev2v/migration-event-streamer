@@ -29,7 +29,7 @@ func NewDatastore() *Datastore {
 	}
 }
 
-func (d *Datastore) WithElasticRepository(esConfig config.ElasticSearchEnvConfig, indexes []string) *Datastore {
+func (d *Datastore) WithElasticRepository(esConfig config.ElasticSearchConfig) *Datastore {
 	d.buildFns = append(d.buildFns, func() error {
 		if d.elasticRepo != nil {
 			return nil
@@ -39,7 +39,7 @@ func (d *Datastore) WithElasticRepository(esConfig config.ElasticSearchEnvConfig
 			return err
 		}
 		// create indexes
-		if err := d.createIndexes(elasticRepo, esConfig.Index, indexes); err != nil {
+		if err := d.createIndexes(elasticRepo, esConfig.Indexes); err != nil {
 			return fmt.Errorf("failed to create indexes: %v", err)
 		}
 		d.elasticRepo = elasticRepo
@@ -147,9 +147,9 @@ func (d *Datastore) createKafkaProducer(brokers []string) (*pkgKafka.KafkaProduc
 	return kp, nil
 }
 
-func (d *Datastore) createIndexes(es *elastic.ElasticRepository, prefix string, indexes []string) error {
+func (d *Datastore) createIndexes(es *elastic.ElasticRepository, indexes []string) error {
 	for _, idx := range indexes {
-		if err := es.CreateIndex(fmt.Sprintf("%s_%s", prefix, idx)); err != nil {
+		if err := es.CreateIndex(idx); err != nil {
 			return err
 		}
 	}
