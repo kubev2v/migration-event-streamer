@@ -1,16 +1,10 @@
-package clients
+package config
 
 import (
-	"crypto/tls"
 	"fmt"
-	"io"
-	"net"
-	"net/http"
 	"time"
 
-	elastic "github.com/elastic/go-elasticsearch/v8"
 	"github.com/kelseyhightower/envconfig"
-	"go.uber.org/zap"
 )
 
 type ElasticSearchEnvConfig struct {
@@ -34,42 +28,6 @@ func GetElasticConfigFromEnv() (ElasticSearchEnvConfig, error) {
 		return ElasticSearchEnvConfig{}, fmt.Errorf("failed to parse elasticsearch config %w", err)
 	}
 	return envConfig, nil
-}
-
-func NewElasticsearchClient(config ElasticSearchEnvConfig) (*elastic.Client, error) {
-	addresses := []string{
-		config.Address,
-	}
-	cfg := elastic.Config{
-		Addresses: addresses,
-		Username:  config.Username,
-		Password:  config.Password,
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost:   10,
-			ResponseHeaderTimeout: config.ResponseTimeout,
-			DialContext:           (&net.Dialer{Timeout: config.DialTimeout}).DialContext,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: config.SSLInsecureSkipVerify,
-				MinVersion:         tls.VersionTLS11,
-			},
-		},
-	}
-
-	client, err := elastic.NewClient(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize elasticsearch client %w", err)
-	}
-
-	resp, err := client.Info()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get info from elasticsearch server: %w", err)
-	}
-	defer resp.Body.Close()
-
-	data, _ := io.ReadAll(resp.Body)
-	zap.S().Infof("connected to elastic search: %s", string(data))
-
-	return client, nil
 }
 
 func getConfigFromEnv[T any]() (T, error) {
