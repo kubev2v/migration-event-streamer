@@ -8,7 +8,7 @@ build:
 	go build -o bin/streamer main.go
 
 run:
-	@env $(cat $(PWD)/.env | xargs) bin/streamer
+	bin/streamer run --config $(PWD)/resources/config.yaml
 
 build.podman:
 	@podman build . -t quay.io/ctupangiu/migration-event-streamer:latest

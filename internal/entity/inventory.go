@@ -61,5 +61,5 @@ type Inventory struct {
 	TotalDiskSpace    int      `json:"total_disk_space"`
 	VMs               int      `json:"vms"`
 	VMsMigratable     int      `json:"vms_migratable"`
-	MigrationWarnings []string `json:"migration_warnings`
+	MigrationWarnings []string `json:"migration_warnings"`
 }
