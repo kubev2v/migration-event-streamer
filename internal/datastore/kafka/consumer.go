@@ -84,7 +84,6 @@ func (kc *Consumer) Consume(ctx context.Context, messages chan entity.Message) e
 			msg := entity.NewMessage(event)
 			messages <- msg
 
-			fmt.Println("2")
 			select {
 			case <-msg.CommitCh:
 			case <-rcvCtx.Done():
