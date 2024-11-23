@@ -7,6 +7,9 @@ vendor:
 build:
 	go build -o bin/streamer main.go
 
+build.producer:
+	go build -o bin/producer $(PWD)/samples/producer/main.go
+
 run:
 	bin/streamer run --config $(PWD)/resources/config.yaml
 

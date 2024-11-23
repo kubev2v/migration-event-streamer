@@ -1,21 +1,31 @@
 pipelines:
   - name: elastic
     type: elastic
-    inputTopic: test_output
+    inputTopic: assisted.migrations.events.inventory
+  - name: elastic
+    type: elastic
+    inputTopic: assisted.migrations.events.ui
+  - name: elastic
+    type: elastic
+    inputTopic: assisted.migrations.events.agent
 router:
-  inputTopic: test
+  inputTopic: assisted.migrations.events
   routes:
-    - eventType: sample.basic.event
-      topic: test_output
-    - eventType: sample.basic.other
-      topic: test_output_other
+    - eventType: assisted.migrations.events.inventory
+      topic: assisted.migrations.events.inventory
+    - eventType: assisted.migrations.events.ui
+      topic: assisted.migrations.events.ui
+    - eventType: assisted.migrations.events.agent
+      topic: assisted.migrations.events.agent
 kafka:
   brokers:
     - "localhost:9092"
-  clientID: "test-client"
+  clientID: test-client
 elastic:
+  indexPrefix: assisted_migrations
   indexes:
-    - test
-    - test1
+    - assisted_migrations_inventory
+    - assisted_migrations_ui
+    - assisted_migrations_agent
   host: "http://localhost:9200"
   sslInsecureSkipVerify: true

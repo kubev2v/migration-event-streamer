@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
     - name: broker
-      image: confluentinc/cp-kafka:7.7.1
+      image: apache/kafka:latest
       ports:
         - hostPort: 9092
           containerPort: 9092
