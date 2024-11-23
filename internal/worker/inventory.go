@@ -1,121 +1,74 @@
 package worker
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"time"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/google/uuid"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
+	"github.com/kubev2v/migration-planner/api/v1alpha1"
 )
 
-func InventoryWorker(ctx context.Context, e cloudevents.Event, w pipeline.Writer[entity.Event]) error {
-	//	zap.S().Debugw("write to elastic", "event", e)
-	return nil
+type jinventory struct {
+	Inventory v1alpha1.Inventory `json:"inventory"`
 }
 
-// func InventoryWorker(ctx context.Context, msg *sarama.Message, w datastore.Writer[entity.Event]) {
-// 	// zap.S().Infof("start inserting events every %s", e.readTimeout)
+func InventoryWorker(ctx context.Context, e cloudevents.Event, w pipeline.Writer[entity.Event]) error {
+	var jv jinventory
+	if err := json.Unmarshal(e.Data(), &jv); err != nil {
+		return err
+	}
 
-// 	// if err := e.dt.ReadWriteTx(ctx, func(ctx context.Context, reader datastore.Reader, writer datastore.Writer) error {
-// 	// 	// read
-// 	// 	sources, err := reader.Read(ctx)
-// 	// 	if err != nil {
-// 	// 		return err
-// 	// 	}
+	// expect to find sourceID in Extentions
+	sourceID, ok := e.Extensions()["sourceid"]
+	if !ok {
+		sourceID = uuid.NewString()
+	}
 
-// 	// 	if len(sources) == 0 {
-// 	// 		return nil
-// 	// 	}
+	inventory := InventorySourceToElastic(sourceID.(string), jv.Inventory)
+	data, _ := json.Marshal(inventory)
 
-// 	// 	w := func(index string, v any) error {
-// 	// 		// marshal and create the event
-// 	// 		data, err := json.Marshal(v)
-// 	// 		if err != nil {
-// 	// 			return err
-// 	// 		}
+	return w.Write(ctx, entity.Event{
+		Index: "inventory",
+		ID:    uuid.New().String(),
+		Body:  bytes.NewReader(data),
+	})
+}
 
-// 	// 		event := models.Event{
-// 	// 			Index: index,
-// 	// 			ID:    uuid.New().String(),
-// 	// 			Body:  bytes.NewReader(data),
-// 	// 		}
+func InventorySourceToElastic(sourceID string, i v1alpha1.Inventory) entity.Inventory {
+	inventory := entity.Inventory{
+		EventTime:         time.Now().Format(time.RFC3339),
+		SourceID:          sourceID,
+		TotalCpuCores:     i.Vms.CpuCores.Total,
+		TotalMemory:       i.Vms.RamGB.Total,
+		TotalDisks:        i.Vms.DiskCount.Total,
+		TotalDiskSpace:    i.Vms.DiskGB.Total,
+		VMs:               i.Vms.Total,
+		VMsMigratable:     i.Vms.TotalMigratable,
+		MigrationWarnings: make([]string, 0, len(i.Vms.MigrationWarnings)),
+	}
+	for _, w := range i.Vms.MigrationWarnings {
+		inventory.MigrationWarnings = append(inventory.MigrationWarnings, w.Assessment)
+	}
+	return inventory
+}
 
-// 	// 		// write
-// 	// 		if err := writer.Write(ctx, event); err != nil {
-// 	// 			return err
-// 	// 		}
+func Os(sourceID string, i v1alpha1.Inventory) []entity.Os {
+	os := make([]entity.Os, 0, len(i.Vms.Os))
+	for k, v := range i.Vms.Os {
+		os = append(os, entity.NewOs(sourceID, k, v))
+	}
+	return os
+}
 
-// 	// 		return nil
-// 	// 	}
-
-// 	// 	for _, source := range sources {
-// 	// 		// transform the source inventory to elastic inventory
-// 	// 		os := transform.Os(source)
-// 	// 		dt := transform.Datastore(source)
-// 	// 		inventory := transform.InventorySourceToElastic(source)
-
-// 	// 		if err := w(inventory.Index, inventory); err != nil {
-// 	// 			zap.S().Warnw("failed to write event", "error", err, "model", os)
-// 	// 		}
-
-// 	// 		idx := 0
-// 	// 		for {
-// 	// 			if idx < len(os) {
-// 	// 				if err := w(os[idx].Index, os[idx]); err != nil {
-// 	// 					zap.S().Warnw("failed to write event", "error", err, "model", os)
-// 	// 				}
-// 	// 			}
-
-// 	// 			if idx < len(dt) {
-// 	// 				if err := w(dt[idx].Index, dt[idx]); err != nil {
-// 	// 					zap.S().Warnw("failed to write event", "error", err, "model", os)
-// 	// 				}
-// 	// 			}
-
-// 	// 			idx++
-// 	// 			if idx >= len(os) && idx >= len(dt) {
-// 	// 				break
-// 	// 			}
-// 	// 		}
-// 	// 	}
-// 	// 	return nil
-// 	// }); err != nil {
-// 	// 	zap.S().Errorf("failed to write inventory to elastic: %s", err)
-// 	// }
-// }
-
-// // func InventorySourceToElastic(source models.Source) models.Inventory {
-// // 	inventory := models.Inventory{
-// // 		Index:             "inventory",
-// // 		ID:                uuid.New().String(),
-// // 		EventTime:         time.Now().Format(time.RFC3339),
-// // 		SourceID:          source.ID.String(),
-// // 		TotalCpuCores:     source.Inventory.Data.Vms.CpuCores.Total,
-// // 		TotalMemory:       source.Inventory.Data.Vms.RamGB.Total,
-// // 		TotalDisks:        source.Inventory.Data.Vms.DiskCount.Total,
-// // 		TotalDiskSpace:    source.Inventory.Data.Vms.DiskGB.Total,
-// // 		VMs:               source.Inventory.Data.Vms.Total,
-// // 		VMsMigratable:     source.Inventory.Data.Vms.TotalMigratable,
-// // 		MigrationWarnings: make([]string, 0, len(source.Inventory.Data.Vms.MigrationWarnings)),
-// // 	}
-// // 	for _, w := range source.Inventory.Data.Vms.MigrationWarnings {
-// // 		inventory.MigrationWarnings = append(inventory.MigrationWarnings, w.Assessment)
-// // 	}
-// // 	return inventory
-// // }
-
-// // func Os(source models.Source) []models.Os {
-// // 	os := make([]models.Os, 0, len(source.Inventory.Data.Vms.Os))
-// // 	for k, v := range source.Inventory.Data.Vms.Os {
-// // 		os = append(os, models.NewOs(source.ID.String(), k, v))
-// // 	}
-// // 	return os
-// // }
-
-// // func Datastore(source models.Source) []models.Datastore {
-// // 	dts := make([]models.Datastore, 0, len(source.Inventory.Data.Infra.Datastores))
-// // 	for idx, dt := range source.Inventory.Data.Infra.Datastores {
-// // 		dts = append(dts, models.NewDatastore(source.ID.String(), idx, dt.FreeCapacityGB, dt.TotalCapacityGB, dt.Type))
-// // 	}
-// // 	return dts
-// // }
+func Datastore(sourceID string, i v1alpha1.Inventory) []entity.Datastore {
+	dts := make([]entity.Datastore, 0, len(i.Infra.Datastores))
+	for idx, dt := range i.Infra.Datastores {
+		dts = append(dts, entity.NewDatastore(sourceID, idx, dt.FreeCapacityGB, dt.TotalCapacityGB, dt.Type))
+	}
+	return dts
+}
