@@ -16,7 +16,7 @@ type Router struct {
 	writer RouteWriter
 	input  chan entity.Message
 	// routes holds the routing information for each ce type.
-	// key is the ce_type and value is the output topic.
+	// key is the ce_type and value is the topic.
 	routes map[string]string
 }
 
@@ -33,20 +33,20 @@ func (r *Router) Start(ctx context.Context) {
 	defer func() { zap.S().Info("router stopped") }()
 
 	for msg := range r.input {
-		outputTopic, ok := r.routes[msg.Event.Context.GetType()]
+		topic, ok := r.routes[msg.Event.Context.GetType()]
 		if !ok {
 			zap.S().Warnw("failed to find output topic", "event_type", msg.Event.Context.GetType())
 			close(msg.CommitCh)
 			continue
 		}
 
-		if err := r.writer.Write(ctx, outputTopic, msg.Event); err != nil {
+		if err := r.writer.Write(ctx, topic, msg.Event); err != nil {
 			zap.S().Warnw("failed to write message", "message", msg, "error", err)
 			close(msg.CommitCh)
 			continue
 		}
 
-		zap.S().Infow("message routed", "type", msg.Event.Context.GetType(), "topic", outputTopic)
+		zap.S().Infow("message routed", "type", msg.Event.Context.GetType(), "topic", topic)
 		close(msg.CommitCh)
 	}
 }
