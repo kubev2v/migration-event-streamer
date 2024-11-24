@@ -2,9 +2,11 @@ package pipeline
 
 import (
 	"context"
+	"time"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -28,6 +30,34 @@ func NewPipeline[T any](name string, messages chan entity.Message, writer Writer
 		messages: messages,
 		worker:   worker,
 	}
+}
+
+func (d *Pipeline[T]) WithRetry() *Pipeline[T] {
+	// wrap the original worker with a retry function
+	previous := d.worker
+	d.worker = func(ctx context.Context, message cloudevents.Event, writer Writer[T]) error {
+		// TODO add retry function
+		return previous(ctx, message, writer)
+	}
+	return d
+}
+
+func (d *Pipeline[T]) WithObservability() *Pipeline[T] {
+	previousWorker := d.worker
+	d.worker = func(ctx context.Context, message cloudevents.Event, writer Writer[T]) error {
+		// get timestamp
+		startTimestamp := message.Context.GetTime()
+		metrics.IncreaseMessagesCount(message.Context.GetType())
+		err := previousWorker(ctx, message, writer)
+		if err != nil {
+			metrics.IncreaseErrorProcessingCount(message.Context.GetType())
+			return err
+		}
+		metrics.IncreaseProcessedMessagesCount(message.Context.GetType())
+		metrics.UpdateProcessingMetric(message.Context.GetType(), time.Now().Sub(startTimestamp))
+		return nil
+	}
+	return d
 }
 
 func (d *Pipeline[T]) Start(ctx context.Context) {

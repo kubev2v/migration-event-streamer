@@ -36,7 +36,7 @@ func (m *Manager) ElasticPipeline(ctx context.Context, name string, consumer Con
 			return err
 		}
 
-		pipeline := NewPipeline[entity.Event](name, messages, writer, worker)
+		pipeline := NewPipeline[entity.Event](name, messages, writer, worker).WithRetry().WithObservability()
 		m.elasticPipelines = append(m.elasticPipelines, pipeline)
 
 		zap.S().Infof("elastic %q pipeline created", name)

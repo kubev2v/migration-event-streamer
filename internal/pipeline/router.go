@@ -5,6 +5,7 @@ import (
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -33,6 +34,9 @@ func (r *Router) Start(ctx context.Context) {
 	defer func() { zap.S().Info("router stopped") }()
 
 	for msg := range r.input {
+		// count the messages received on the input topic
+		metrics.IncreaseMessagesCount("assisted.migrations.events")
+
 		topic, ok := r.routes[msg.Event.Context.GetType()]
 		if !ok {
 			zap.S().Warnw("failed to find output topic", "event_type", msg.Event.Context.GetType())
