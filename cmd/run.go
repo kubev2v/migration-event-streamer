@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,6 +18,7 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/logger"
 	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
 	"github.com/kubev2v/migration-event-streamer/internal/worker"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -50,6 +52,10 @@ var runCmd = &cobra.Command{
 		}
 
 		zap.S().Infof("using config: %+v", c)
+
+		// start prometheus
+		http.Handle("/metrics", promhttp.Handler())
+		go http.ListenAndServe(":8080", nil)
 
 		dt, err := createDatastore(c)
 		if err != nil {
