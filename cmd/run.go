@@ -18,9 +18,16 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/logger"
 	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
 	"github.com/kubev2v/migration-event-streamer/internal/worker"
+	basicWorker "github.com/kubev2v/migration-event-streamer/samples/worker"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+)
+
+var (
+	InventoryPipeline string = "inventory"
+	UiPipeline        string = "ui"
+	AgentPipeline     string = "agent"
 )
 
 // runCmd represents the run command
@@ -51,7 +58,7 @@ var runCmd = &cobra.Command{
 			zap.S().Fatal("failed to read configuration: %s", err)
 		}
 
-		zap.S().Infof("using config: %+v", c)
+		zap.S().Debugf("using config: %+v", c)
 
 		// start prometheus
 		http.Handle("/metrics", promhttp.Handler())
@@ -119,8 +126,12 @@ func createPipelines(ctx context.Context, c config.StreamerConfig, dt *datastore
 	m := pipeline.NewManager()
 	for _, p := range c.Pipelines {
 		switch p.Type {
-		case "elastic":
-			m.ElasticPipeline(ctx, "elastic", dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), worker.InventoryWorker)
+		case InventoryPipeline:
+			m.ElasticPipeline(ctx, InventoryPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), worker.InventoryWorker)
+		case UiPipeline:
+			m.ElasticPipeline(ctx, UiPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), basicWorker.BasicWorker)
+		case AgentPipeline:
+			m.ElasticPipeline(ctx, AgentPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), basicWorker.BasicWorker)
 		}
 	}
 
