@@ -15,9 +15,15 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	inventoryTopic = "assisted.migrations.events.inventory"
+	eventSource    = "com.redhat.assisted-migration"
+)
+
 var (
 	inventory string
 	sourceID  string
+	timeout   string
 )
 
 func main() {
@@ -35,10 +41,16 @@ func main() {
 		zap.S().Fatalf("failed to create protocol %s", err)
 	}
 
-	flag.StringVar(&inventory, "i", "", "")
-	flag.StringVar(&sourceID, "sourceID", "", "")
+	flag.StringVar(&inventory, "inventory", "", "")
+	flag.StringVar(&sourceID, "source_id", uuid.NewString(), "")
+	flag.StringVar(&timeout, "timetout", "1s", "")
 
 	flag.Parse()
+
+	tick, err := time.ParseDuration(timeout)
+	if err != nil {
+		zap.S().Fatal(err)
+	}
 
 	data, err := os.ReadFile(inventory)
 	if err != nil {
@@ -61,8 +73,8 @@ func main() {
 
 		e := cloudevents.NewEvent()
 		e.SetID(uuid.New().String())
-		e.SetType("assisted.migrations.events.inventory")
-		e.SetSource("com.redhat.assisted-migration")
+		e.SetType(inventoryTopic)
+		e.SetSource(eventSource)
 		e.SetExtension("sourceID", sourceID)
 		_ = e.SetData(cloudevents.ApplicationJSON, inv)
 
@@ -76,6 +88,6 @@ func main() {
 			zap.S().Infof("sent: %v, accepted: %t", now, cloudevents.IsACK(result))
 		}
 
-		<-time.After(3 * time.Second)
+		<-time.After(tick)
 	}
 }
