@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"math/rand"
 	"os"
 	"time"
 
@@ -16,14 +17,18 @@ import (
 )
 
 const (
-	inventoryTopic = "assisted.migrations.events.inventory"
-	eventSource    = "com.redhat.assisted-migration"
+	inventoryEventType = "assisted.migrations.events.inventory"
+	uiEventType        = "assisted.migrations.events.ui"
+	agentEventType     = "assisted.migrations.events.agent"
+	inputTopic         = "assisted.migrations.events"
+	eventSource        = "com.redhat.assisted-migration"
 )
 
 var (
 	inventory string
 	sourceID  string
 	timeout   string
+	oneShot   bool
 )
 
 func main() {
@@ -36,7 +41,7 @@ func main() {
 	saramaConfig := sarama.NewConfig()
 	saramaConfig.Version = sarama.MaxVersion
 
-	sender, err := kafka_sarama.NewSender([]string{"127.0.0.1:9092"}, saramaConfig, "assisted.migrations.events")
+	sender, err := kafka_sarama.NewSender([]string{"127.0.0.1:9092"}, saramaConfig, inputTopic)
 	if err != nil {
 		zap.S().Fatalf("failed to create protocol %s", err)
 	}
@@ -44,6 +49,7 @@ func main() {
 	flag.StringVar(&inventory, "inventory", "", "")
 	flag.StringVar(&sourceID, "source_id", uuid.NewString(), "")
 	flag.StringVar(&timeout, "timetout", "1s", "")
+	flag.BoolVar(&oneShot, "oneshot", false, "send only one message")
 
 	flag.Parse()
 
@@ -71,12 +77,22 @@ func main() {
 	for {
 		now := time.Now().Unix()
 
+		who := rand.Intn(3) + 1
 		e := cloudevents.NewEvent()
 		e.SetID(uuid.New().String())
-		e.SetType(inventoryTopic)
 		e.SetSource(eventSource)
-		e.SetExtension("sourceID", sourceID)
-		_ = e.SetData(cloudevents.ApplicationJSON, inv)
+		switch who {
+		case 1:
+			e.SetType(inventoryEventType)
+			e.SetExtension("sourceID", sourceID)
+			_ = e.SetData(cloudevents.ApplicationJSON, inv)
+		case 2:
+			e.SetType(uiEventType)
+			_ = e.SetData(cloudevents.ApplicationJSON, map[string]string{"event": "click something"})
+		case 3:
+			e.SetType(agentEventType)
+			_ = e.SetData(cloudevents.ApplicationJSON, map[string]string{"agent_state": "agent state"})
+		}
 
 		if result := c.Send(
 			// Set the producer message key
@@ -85,7 +101,11 @@ func main() {
 		); cloudevents.IsUndelivered(result) {
 			zap.S().Infof("failed to send: %v", err)
 		} else {
-			zap.S().Infof("sent: %v, accepted: %t", now, cloudevents.IsACK(result))
+			zap.S().Infof("sent: %v, accepted: %t, type %s", now, cloudevents.IsACK(result), e.Context.GetType())
+		}
+
+		if oneShot {
+			break
 		}
 
 		<-time.After(tick)
