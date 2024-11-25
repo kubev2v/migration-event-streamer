@@ -19,8 +19,11 @@ build.podman:
 
 infra.up:
 	@podman play kube resources/dev.yml
+	@podman play kube --network host resources/observability.yml
+	
 
 infra.down:
 	@podman kube down resources/dev.yml
+	@podman kube down resources/prometheus.yml
 
 .PHONY: vendor build run
