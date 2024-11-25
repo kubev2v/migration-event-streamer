@@ -1,12 +1,12 @@
 pipelines:
-  - name: elastic
-    type: elastic
+  - name: inventory
+    type: inventory
     inputTopic: assisted.migrations.events.inventory
-  - name: elastic
-    type: elastic
+  - name: ui
+    type: ui
     inputTopic: assisted.migrations.events.ui
-  - name: elastic
-    type: elastic
+  - name: agent
+    type: agent
     inputTopic: assisted.migrations.events.agent
 router:
   inputTopic: assisted.migrations.events
