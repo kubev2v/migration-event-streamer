@@ -1,0 +1,108 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: migration-event-streamer
+parameters:
+  - name: REPLICAS
+    value: "2"
+  - name: IMAGE_NAME
+    value: quay.io/ctupangiu/migration-event-streamer
+  - name: IMAGE_TAG
+    value: latest
+  # kafka
+  - name: KAFKA_BROKER_1
+    value: planner-kafka-bootstrap.planner.svc:9091
+  - name: KAFKA_BROKER_2
+    value: planner-kafka-bootstrap.planner.svc:9092
+  - name: KAFKA_BROKER_3
+    value: planner-kafka-bootstrap.planner.svc:9093
+  - name: KAFKA_CLIENT_ID
+    value: migration-event-streamer
+  - name: KAFKA_USE_TLS
+    value: "false"
+  # elastic
+  - name: ELASTIC_HOST
+    value: https://elasticsearch-sample-es-http:9200 
+  - name: ELASTIC_SECRET_NAME
+    value: elasticsearch-sample-es-elastic-user
+  - name: ELASTIC_USERNAME
+    value: elastic
+
+objects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: event-streamer-config
+    data:
+      config.yml: |
+        pipelines:
+          - name: inventory
+            type: inventory
+            inputTopic: assisted.migrations.events.inventory
+          - name: ui
+            type: ui
+            inputTopic: assisted.migrations.events.ui
+          - name: agent
+            type: agent
+            inputTopic: assisted.migrations.events.agent
+        router:
+          inputTopic: assisted.migrations.events
+          routes:
+            - eventType: assisted.migrations.events.inventory
+              topic: assisted.migrations.events.inventory
+            - eventType: assisted.migrations.events.ui
+              topic: assisted.migrations.events.ui
+            - eventType: assisted.migrations.events.agent
+              topic: assisted.migrations.events.agent
+        kafka:
+          brokers:
+            - ${KAFKA_BROKER_1}
+            - ${KAFKA_BROKER_2}
+            - ${KAFKA_BROKER_3}
+          clientID: ${KAFKA_CLIENT_ID}
+          tls: ${KAFKA_USE_TLS}
+        elastic:
+          indexPrefix: assisted_migrations
+          indexes:
+            - assisted_migrations_inventory
+            - assisted_migrations_ui
+            - assisted_migrations_agent
+          host: ${ELASTIC_HOST} 
+          sslInsecureSkipVerify: true
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: migration-event-streamer
+    spec:
+      selector:
+        matchLabels:
+          app: migration-event-streamer
+      replicas: ${{REPLICAS}}
+      template:
+        metadata:
+          labels:
+            app: migration-event-streamer
+        spec:
+          containers:
+            - name: migration-event-streamer
+              image: ${IMAGE_NAME}:${IMAGE_TAG}
+              imagePullPolicy: Always
+              command: ["/app/streamer"]
+              args: ["run", "--config", "config.yml"]
+              env:
+                - name: STREAMER_ELASTICSEARCH_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${ELASTIC_SECRET_NAME}
+                      key: elastic
+                - name: STREAMER_ELASTICSEARCH_USERNAME
+                  value: ${ELASTIC_USERNAME}
+              volumeMounts:
+                - name: migration-event-streamer-config
+                  mountPath: /app/config.yml
+                  subPath: config.yml
+          volumes:
+            - name: migration-event-streamer-config
+              configMap:
+                name: event-streamer-config
