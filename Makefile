@@ -1,11 +1,15 @@
 include .env
 
+GIT_COMMIT ?=$(shell git rev-parse --short "HEAD^{commit}" 2>/dev/null)
+
+LD_FLAGS := -ldflags "-X github.com/kubev2v/migration-event-streamer/cmd.GitCommit=$(GIT_COMMIT)"
+
 vendor:
 	go mod tidy
 	go mod vendor
 
 build:
-	go build -o bin/streamer main.go
+	go build $(LD_FLAGS) -o bin/streamer main.go
 
 build.producer:
 	go build -o bin/producer $(PWD)/samples/producer/main.go

@@ -28,6 +28,7 @@ var (
 	InventoryPipeline string = "inventory"
 	UiPipeline        string = "ui"
 	AgentPipeline     string = "agent"
+	GitCommit         string
 )
 
 // runCmd represents the run command
@@ -58,6 +59,11 @@ var runCmd = &cobra.Command{
 			zap.S().Fatal("failed to read configuration: %s", err)
 		}
 
+		// get env values
+		c.Elastic.Username = viper.GetString("elasticsearch_username")
+		c.Elastic.Password = viper.GetString("elasticsearch_password")
+
+		zap.S().Infof("git commit: %s", GitCommit)
 		zap.S().Debugf("using config: %+v", c)
 
 		// start prometheus
@@ -151,8 +157,10 @@ func createPipelines(ctx context.Context, c config.StreamerConfig, dt *datastore
 }
 
 func init() {
-	viper.SetEnvPrefix("STREAMER")
+	viper.SetEnvPrefix("streamer")
 	viper.SetConfigType("yaml")
+	viper.BindEnv("elasticsearch_username")
+	viper.BindEnv("elasticsearch_password")
 	viper.AutomaticEnv()
 
 	// set defaults
