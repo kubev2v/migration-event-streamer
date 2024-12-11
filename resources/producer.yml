@@ -1,0 +1,41 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: migration-event-producer
+parameters:
+  - name: REPLICAS
+    value: "1"
+  - name: IMAGE_NAME
+    value: quay.io/ctupangiu/migration-event-producer
+  - name: IMAGE_TAG
+    value: latest
+  - name: KAFKA_BROKER_1
+    value: planner-kafka-bootstrap.planner.svc:9091
+  - name: KAFKA_BROKER_2
+    value: planner-kafka-bootstrap.planner.svc:9092
+  - name: KAFKA_BROKER_3
+    value: planner-kafka-bootstrap.planner.svc:9093
+
+objects:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: migration-event-producer
+    spec:
+      selector:
+        matchLabels:
+          app: migration-event-producer
+      replicas: ${{REPLICAS}}
+      template:
+        metadata:
+          labels:
+            app: migration-event-producer
+        spec:
+          containers:
+            - name: migration-event-producer
+              image: ${IMAGE_NAME}:${IMAGE_TAG}
+              imagePullPolicy: Always
+              command: ["/app/producer"]
+              args: ["--brokers", "${KAFKA_BROKER_1},${KAFKA_BROKER_2},${KAFKA_BROKER_3}"]
+
+
