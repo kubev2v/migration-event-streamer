@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewElasticsearchClient(config config.ElasticSearchConfig) (*elastic.Client, error) {
+func NewElasticsearchClient(config config.ElasticSearch) (*elastic.Client, error) {
 	addresses := []string{
 		config.Host,
 	}

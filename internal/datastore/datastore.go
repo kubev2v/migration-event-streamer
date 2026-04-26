@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/IBM/sarama"
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/kafka"
@@ -16,7 +15,6 @@ type buildFn func() error
 
 type Datastore struct {
 	buildFns       []buildFn
-	kConfig        config.KafkaConfig
 	elasticRepo    *elastic.ElasticRepository
 	kafkaConsumers map[string]*kafka.Consumer
 	kafkaProducers map[string]*pkgKafka.KafkaProducer
@@ -29,7 +27,7 @@ func NewDatastore() *Datastore {
 	}
 }
 
-func (d *Datastore) WithElasticRepository(esConfig config.ElasticSearchConfig) *Datastore {
+func (d *Datastore) WithElasticRepository(esConfig config.ElasticSearch) *Datastore {
 	d.buildFns = append(d.buildFns, func() error {
 		if d.elasticRepo != nil {
 			return nil
@@ -38,7 +36,6 @@ func (d *Datastore) WithElasticRepository(esConfig config.ElasticSearchConfig) *
 		if err != nil {
 			return err
 		}
-		// create indexes
 		if err := d.createIndexes(elasticRepo, esConfig.Indexes); err != nil {
 			return fmt.Errorf("failed to create indexes: %v", err)
 		}
@@ -48,12 +45,12 @@ func (d *Datastore) WithElasticRepository(esConfig config.ElasticSearchConfig) *
 	return d
 }
 
-func (d *Datastore) WithKafkaConsumer(name string, kConfig config.KafkaConfig, topic, consumerGroupID string) *Datastore {
+func (d *Datastore) WithKafkaConsumer(name string, kConfig config.Kafka, topic, consumerGroupID string) *Datastore {
 	d.buildFns = append(d.buildFns, func() error {
 		if _, ok := d.kafkaConsumers[name]; ok {
 			return fmt.Errorf("failed to create kafka consumer with name %s. consumer already exists", name)
 		}
-		kc, err := d.createKafkaConsumer(kConfig, topic, consumerGroupID)
+		kc, err := kafka.NewConsumer(kConfig, topic, consumerGroupID)
 		if err != nil {
 			return err
 		}
@@ -64,17 +61,17 @@ func (d *Datastore) WithKafkaConsumer(name string, kConfig config.KafkaConfig, t
 	return d
 }
 
-func (d *Datastore) WithKafkaProducer(name string, kConfig config.KafkaConfig) *Datastore {
+func (d *Datastore) WithKafkaProducer(name string, kConfig config.Kafka) *Datastore {
 	d.buildFns = append(d.buildFns, func() error {
 		if _, ok := d.kafkaProducers[name]; ok {
-			return fmt.Errorf("failed to create kafka producer with name %s. consumer already exists", name)
+			return fmt.Errorf("failed to create kafka producer with name %s. producer already exists", name)
 		}
-		kp, err := d.createKafkaProducer(kConfig.Brokers)
+		kp, err := pkgKafka.NewKafkaProducer(kConfig.Brokers)
 		if err != nil {
 			return err
 		}
 		d.kafkaProducers[name] = kp
-		zap.S().Infow("kafka producer created", name)
+		zap.S().Infow("kafka producer created", "name", name)
 		return nil
 	})
 	return d
@@ -121,30 +118,6 @@ func (d *Datastore) MustHaveProducer(name string) *pkgKafka.KafkaProducer {
 		panic(err)
 	}
 	return p
-}
-
-func (d *Datastore) createKafkaConsumer(config config.KafkaConfig, topic, consumerGroupID string) (*kafka.Consumer, error) {
-	kc, err := kafka.NewConsumer(config, topic, consumerGroupID)
-	if err != nil {
-		return nil, err
-	}
-
-	return kc, nil
-}
-
-func (d *Datastore) createKafkaProducer(brokers []string) (*pkgKafka.KafkaProducer, error) {
-	saramaConfig := sarama.NewConfig()
-	if d.kConfig.SaramaConfig != nil {
-		saramaConfig = d.kConfig.SaramaConfig
-	}
-	saramaConfig.Version = sarama.V3_6_0_0
-
-	kp, err := pkgKafka.NewKafkaProducer(brokers, saramaConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return kp, nil
 }
 
 func (d *Datastore) createIndexes(es *elastic.ElasticRepository, indexes []string) error {

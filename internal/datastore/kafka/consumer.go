@@ -2,112 +2,115 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
-	"github.com/IBM/sarama"
-	"github.com/cloudevents/sdk-go/protocol/kafka_sarama/v2"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/client"
-	logCtx "github.com/cloudevents/sdk-go/v2/context"
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/plugin/kprom"
 	"go.uber.org/zap"
 )
 
 type Consumer struct {
-	client           cloudevents.Client
-	protocol         *kafka_sarama.Protocol
-	done             chan chan any
-	receiverCancelFn context.CancelFunc
+	cl     *kgo.Client
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
-func NewConsumer(config config.KafkaConfig, topic, consumerGroupID string) (*Consumer, error) {
-	saramaConfig := sarama.NewConfig()
-	if config.SaramaConfig != nil {
-		saramaConfig = config.SaramaConfig
-	}
-
-	// mandatory configuration
-	saramaConfig.Consumer.Offsets.AutoCommit.Enable = true
-	saramaConfig.Consumer.Return.Errors = true
-
-	// make it configurable ?
-	saramaConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
-
-	// clientID
-	if saramaConfig.ClientID == "" {
-		clientID := config.ClientID
-		if clientID == "" {
-			hostname, err := os.Hostname()
-			if err != nil {
-				hostname = fmt.Sprintf("clientid-%v", consumerGroupID)
-			}
-
-			clientID = hostname
+func NewConsumer(cfg config.Kafka, topic, consumerGroupID string) (*Consumer, error) {
+	clientID := cfg.ClientID
+	if clientID == "" {
+		hostname, err := os.Hostname()
+		if err != nil {
+			hostname = fmt.Sprintf("consumer-%s", consumerGroupID)
 		}
-
-		saramaConfig.ClientID = clientID
+		clientID = hostname
 	}
 
-	// kafka version
-	saramaConfig.Version = sarama.V3_6_0_0
-
-	protocol, err := kafka_sarama.NewProtocol(config.Brokers,
-		saramaConfig,
-		topic,
-		topic,
-		kafka_sarama.WithReceiverGroupId(consumerGroupID))
+	cl, err := kgo.NewClient(
+		kgo.SeedBrokers(cfg.Brokers...),
+		kgo.ClientID(clientID),
+		kgo.ConsumerGroup(consumerGroupID),
+		kgo.ConsumeTopics(topic),
+		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
+		kgo.DisableAutoCommit(),
+		kgo.BlockRebalanceOnPoll(),
+		kgo.WithHooks(kprom.NewMetrics("kafka_consumer")),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create protocol: %w", err)
+		return nil, fmt.Errorf("failed to create kafka consumer: %w", err)
 	}
 
-	c, err := cloudevents.NewClient(protocol, cloudevents.WithTimeNow(), cloudevents.WithUUIDs(), client.WithBlockingCallback(), client.WithPollGoroutines(1))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %w", err)
-	}
-
-	return &Consumer{
-		client:   c,
-		protocol: protocol,
-	}, nil
+	return &Consumer{cl: cl}, nil
 }
 
-func (kc *Consumer) Consume(ctx context.Context, messages chan entity.Message) error {
-	var err error
-	rcvCtx, cancel := context.WithCancel(logCtx.WithLogger(ctx, zap.S()))
-	kc.receiverCancelFn = cancel
-	kc.done = make(chan chan any)
+func (c *Consumer) Consume(ctx context.Context, messages chan entity.Message) error {
+	consumerCtx, cancel := context.WithCancel(ctx)
+	c.cancel = cancel
+	c.done = make(chan struct{})
 
 	go func() {
-		err = kc.client.StartReceiver(rcvCtx, func(event cloudevents.Event) {
+		defer close(messages)
+		defer close(c.done)
+
+		for {
+			fetches := c.cl.PollRecords(consumerCtx, 1)
+			if consumerCtx.Err() != nil {
+				return
+			}
+
+			if errs := fetches.Errors(); len(errs) > 0 {
+				for _, e := range errs {
+					zap.S().Errorw("fetch error", "topic", e.Topic, "partition", e.Partition, "error", e.Err)
+				}
+			}
+
+			records := fetches.Records()
+			if len(records) == 0 {
+				c.cl.AllowRebalance()
+				continue
+			}
+
+			r := records[0]
+
+			var event cloudevents.Event
+			if err := json.Unmarshal(r.Value, &event); err != nil {
+				zap.S().Warnw("failed to unmarshal cloudevent", "error", err, "topic", r.Topic, "offset", r.Offset)
+				c.cl.MarkCommitRecords(r)
+				c.cl.CommitMarkedOffsets(consumerCtx)
+				c.cl.AllowRebalance()
+				continue
+			}
+
 			msg := entity.NewMessage(event)
 			messages <- msg
 
 			select {
 			case <-msg.CommitCh:
-			case <-rcvCtx.Done():
+			case <-consumerCtx.Done():
+				c.cl.AllowRebalance()
+				return
 			}
-		})
-		close(messages)
-		close(<-kc.done)
-		zap.S().Info("consumer closed")
+
+			c.cl.MarkCommitRecords(r)
+			c.cl.CommitMarkedOffsets(consumerCtx)
+			c.cl.AllowRebalance()
+		}
 	}()
 
-	return err
+	return nil
 }
 
-func (kc *Consumer) Close(ctx context.Context) error {
-	err := kc.protocol.Close(ctx)
-	if kc.done == nil {
-		return nil
+func (c *Consumer) Close(_ context.Context) error {
+	if c.cancel != nil {
+		c.cancel()
 	}
-
-	kc.receiverCancelFn()
-
-	// wait for receiver to exit the loop
-	c := make(chan any)
-	kc.done <- c
-	<-c
-	return err
+	if c.done != nil {
+		<-c.done
+	}
+	c.cl.Close()
+	return nil
 }

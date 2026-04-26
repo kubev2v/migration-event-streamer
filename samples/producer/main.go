@@ -8,11 +8,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/IBM/sarama"
-	"github.com/cloudevents/sdk-go/protocol/kafka_sarama/v2"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/uuid"
 	"github.com/kubev2v/migration-event-streamer/internal/logger"
+	pkgKafka "github.com/kubev2v/migration-event-streamer/pkg/kafka"
 	"go.uber.org/zap"
 )
 
@@ -32,25 +31,16 @@ var (
 )
 
 func main() {
-	logger := logger.SetupLogger()
+	logger := logger.SetupLogger("console", "debug")
 	defer logger.Sync()
 
 	undo := zap.ReplaceGlobals(logger)
 	defer undo()
 
-	saramaConfig := sarama.NewConfig()
-	saramaConfig.Version = sarama.MaxVersion
-
-	sender, err := kafka_sarama.NewSender([]string{"127.0.0.1:9092"}, saramaConfig, inputTopic)
-	if err != nil {
-		zap.S().Fatalf("failed to create protocol %s", err)
-	}
-
 	flag.StringVar(&inventory, "inventory", "", "")
 	flag.StringVar(&sourceID, "source_id", uuid.NewString(), "")
 	flag.StringVar(&timeout, "timetout", "1s", "")
 	flag.BoolVar(&oneShot, "oneshot", false, "send only one message")
-
 	flag.Parse()
 
 	tick, err := time.ParseDuration(timeout)
@@ -67,16 +57,13 @@ func main() {
 		zap.S().Fatal(err)
 	}
 
-	defer sender.Close(context.Background())
-
-	c, err := cloudevents.NewClient(sender, cloudevents.WithTimeNow(), cloudevents.WithUUIDs())
+	producer, err := pkgKafka.NewKafkaProducer([]string{"127.0.0.1:9092"})
 	if err != nil {
-		zap.S().Fatalf("failed to create client %s", err)
+		zap.S().Fatalf("failed to create producer: %s", err)
 	}
+	defer producer.Close(context.Background())
 
 	for {
-		now := time.Now().Unix()
-
 		who := rand.Intn(3) + 1
 		e := cloudevents.NewEvent()
 		e.SetID(uuid.New().String())
@@ -94,14 +81,10 @@ func main() {
 			_ = e.SetData(cloudevents.ApplicationJSON, map[string]string{"agent_state": "agent state"})
 		}
 
-		if result := c.Send(
-			// Set the producer message key
-			kafka_sarama.WithMessageKey(context.Background(), sarama.StringEncoder(e.ID())),
-			e,
-		); cloudevents.IsUndelivered(result) {
+		if err := producer.Write(context.Background(), inputTopic, e); err != nil {
 			zap.S().Infof("failed to send: %v", err)
 		} else {
-			zap.S().Infof("sent: %v, accepted: %t, type %s", now, cloudevents.IsACK(result), e.Context.GetType())
+			zap.S().Infof("sent, type %s", e.Context.GetType())
 		}
 
 		if oneShot {

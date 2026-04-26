@@ -1,67 +1,45 @@
 package config
 
-import (
-	"time"
+import "time"
 
-	"github.com/IBM/sarama"
-)
+//go:generate go run github.com/ecordell/optgen -output zz_generated.configuration.go . Configuration Kafka ElasticSearch
 
-type Route struct {
-	EventType string `yaml:"eventType"`
-	Topic     string `yaml:"topic"`
+type Configuration struct {
+	Kafka         Kafka         `debugmap:"visible"`
+	ElasticSearch ElasticSearch `debugmap:"visible"`
+	LogFormat     string        `debugmap:"visible" default:"console"`
+	LogLevel      string        `debugmap:"visible" default:"info"`
+	MetricsPort   int           `debugmap:"visible" default:"8080"`
 }
 
-type Router struct {
-	InputTopic string  `yaml:"inputTopic"`
-	Routes     []Route `yaml:"routes"`
+type Kafka struct {
+	Brokers  []string `debugmap:"visible"`
+	ClientID string   `debugmap:"visible"`
 }
 
-type Pipeline struct {
-	Name        string `yaml:"name"`
-	Type        string `yaml:"type"`
-	InputTopic  string `yaml:"inputTopic"`
-	OutputTopic string `yaml:"outputTopic"`
+type ElasticSearch struct {
+	Username              string `debugmap:"visible"`
+	Password              string `debugmap:"hidden"`
+	Host                  string `debugmap:"visible" default:"http://localhost:9200"`
+	IndexPrefix           string `debugmap:"visible" default:"assisted_migrations"`
+	Indexes               []string `debugmap:"visible"`
+	SSLInsecureSkipVerify bool   `debugmap:"sensitive" default:"true"`
+	ResponseTimeout       string `debugmap:"visible" default:"90s"`
+	DialTimeout           string `debugmap:"visible" default:"1s"`
 }
 
-// KafkaConfig gathers all kafka connection information.
-type KafkaConfig struct {
-	Brokers  []string            `yaml:"brokers"`
-	Version  sarama.KafkaVersion `yaml:"-"`
-	ClientID string              `yaml:"clientID"`
-
-	SaramaConfig *sarama.Config
-}
-
-type ElasticSearchConfig struct {
-	Username              string   `yaml:"username"`
-	Password              string   `yaml:"password"`
-	Host                  string   `yaml:"host"`
-	IndexPrefix           string   `yaml:"indexPrefix"`
-	Indexes               []string `yaml:"indexes"`
-	SSLInsecureSkipVerify bool     `yaml:"sslInsecureSkipVerify"`
-	ResponseTimeout       string   `yaml:"responseTimeout"`
-	DialTimeout           string   `yaml:"dialTimeout"`
-}
-
-func (e ElasticSearchConfig) GetResponseTimeout() time.Duration {
+func (e ElasticSearch) GetResponseTimeout() time.Duration {
 	d, err := time.ParseDuration(e.ResponseTimeout)
 	if err != nil {
-		return time.Duration(30 * time.Second)
+		return 30 * time.Second
 	}
 	return d
 }
 
-func (e ElasticSearchConfig) GetDialTimeout() time.Duration {
-	d, err := time.ParseDuration(e.ResponseTimeout)
+func (e ElasticSearch) GetDialTimeout() time.Duration {
+	d, err := time.ParseDuration(e.DialTimeout)
 	if err != nil {
-		return time.Duration(1 * time.Second)
+		return 1 * time.Second
 	}
 	return d
-}
-
-type StreamerConfig struct {
-	Kafka     KafkaConfig         `yaml:"kafka"`
-	Elastic   ElasticSearchConfig `yaml:"elastic"`
-	Router    Router              `yaml:"router"`
-	Pipelines []Pipeline          `yaml:"pipelines"`
 }

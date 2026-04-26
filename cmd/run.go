@@ -1,126 +1,196 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/fatih/color"
+	"github.com/go-extras/cobraflags"
+	"github.com/jzelinskie/cobrautil/v2"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/spf13/pflag"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore"
-	"github.com/kubev2v/migration-event-streamer/internal/logger"
 	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
 	"github.com/kubev2v/migration-event-streamer/internal/worker"
 	basicWorker "github.com/kubev2v/migration-event-streamer/samples/worker"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
 	InventoryPipeline string = "inventory"
 	UiPipeline        string = "ui"
 	AgentPipeline     string = "agent"
-	GitCommit         string
 )
 
-// runCmd represents the run command
-var runCmd = &cobra.Command{
-	Use:          "run",
-	Short:        "start the streamer",
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		logger := logger.SetupLogger()
-		defer logger.Sync()
+func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.Command {
+	var (
+		pipelineFlags    []string
+		routeFlags       []string
+		routerInputTopic string
+		elasticIndexes   []string
+	)
 
-		undo := zap.ReplaceGlobals(logger)
-		defer undo()
+	runCmd := &cobra.Command{
+		Use:   "run",
+		Short: "Start the streamer",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			zap.S().Infow("starting migration-event-streamer",
+				"version", version,
+				"git_commit", gitCommit,
+				"config", cfg.FlatDebugMap(),
+			)
 
-		// read config file
-		configData, err := os.ReadFile(cfgFile)
-		if err != nil {
-			zap.S().Fatalf("failed to read config file %s: %s", cfgFile, err)
-		}
+			pipelines, err := parsePipelines(pipelineFlags)
+			if err != nil {
+				return err
+			}
 
-		if err := viper.ReadConfig(bytes.NewBuffer(configData)); err != nil {
-			zap.S().Fatalf("failed to read config: %v", err)
-		}
+			routes, err := parseRoutes(routeFlags)
+			if err != nil {
+				return err
+			}
 
-		var c config.StreamerConfig
+			cfg.ElasticSearch.Indexes = elasticIndexes
 
-		if err := viper.Unmarshal(&c); err != nil {
-			zap.S().Fatal("failed to read configuration: %s", err)
-		}
+			go func() {
+				http.Handle("/metrics", promhttp.Handler())
+				http.ListenAndServe(fmt.Sprintf(":%d", cfg.MetricsPort), nil)
+			}()
 
-		// get env values
-		c.Elastic.Username = viper.GetString("elasticsearch_username")
-		c.Elastic.Password = viper.GetString("elasticsearch_password")
+			dt, err := createDatastore(cfg, pipelines, routerInputTopic)
+			if err != nil {
+				return err
+			}
 
-		zap.S().Infof("git commit: %s", GitCommit)
-		zap.S().Debugf("using config: %+v", c)
+			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGQUIT)
+			defer cancel()
 
-		// start prometheus
-		http.Handle("/metrics", promhttp.Handler())
-		go http.ListenAndServe(":8080", nil)
+			if err := createPipelines(ctx, pipelines, routes, routerInputTopic, dt); err != nil {
+				return err
+			}
 
-		dt, err := createDatastore(c)
-		if err != nil {
-			zap.S().Fatal(err)
-		}
+			<-ctx.Done()
 
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGQUIT)
-		defer cancel()
+			closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer closeCancel()
 
-		if err := createPipelines(ctx, c, dt); err != nil {
-			zap.S().Fatal(err)
-		}
+			zap.S().Info("shutting down...")
+			defer func() { zap.S().Info("streamer shutdown") }()
 
-		<-ctx.Done()
+			g, gCtx := errgroup.WithContext(closeCtx)
+			g.Go(func() error {
+				return dt.Close(gCtx)
+			})
 
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer closeCancel()
+			if err := g.Wait(); err != nil {
+				zap.S().Errorf("closed with error: %s", err)
+				return err
+			}
 
-		zap.S().Info("shutting down...")
-		defer func() {
-			zap.S().Info("streamer shutdown")
-		}()
+			return nil
+		},
+	}
 
-		g, ctx := errgroup.WithContext(closeCtx)
-		g.Go(func() error {
-			return dt.Close(ctx)
-		})
+	registerFlags(runCmd, cfg, &pipelineFlags, &routeFlags, &routerInputTopic, &elasticIndexes)
+	cobraflags.CobraOnInitialize("STREAMER", runCmd)
 
-		if err := g.Wait(); err != nil {
-			zap.S().Errorf("closed with error: %s", err)
-			return err
-		}
-
-		return nil
-	},
+	return runCmd
 }
 
-func createDatastore(c config.StreamerConfig) (*datastore.Datastore, error) {
-	// create datastore
+func registerFlags(cmd *cobra.Command, cfg *config.Configuration, pipelineFlags, routeFlags *[]string, routerInputTopic *string, elasticIndexes *[]string) {
+	nfs := cobrautil.NewNamedFlagSets(cmd)
+
+	kafkaFlags := nfs.FlagSet(color.New(color.FgBlue, color.Bold).Sprint("Kafka"))
+	registerKafkaFlags(kafkaFlags, cfg)
+
+	elasticFlags := nfs.FlagSet(color.New(color.FgBlue, color.Bold).Sprint("ElasticSearch"))
+	registerElasticFlags(elasticFlags, cfg, elasticIndexes)
+
+	pipelineFlagSet := nfs.FlagSet(color.New(color.FgBlue, color.Bold).Sprint("Pipelines"))
+	pipelineFlagSet.StringArrayVar(pipelineFlags, "pipeline", nil, "Pipeline definition as name:type:inputTopic (repeatable)")
+	pipelineFlagSet.StringVar(routerInputTopic, "router-input-topic", "", "Router input topic")
+	pipelineFlagSet.StringArrayVar(routeFlags, "route", nil, "Route definition as eventType=topic (repeatable)")
+
+	observabilityFlags := nfs.FlagSet(color.New(color.FgBlue, color.Bold).Sprint("Observability"))
+	observabilityFlags.IntVar(&cfg.MetricsPort, "metrics-port", cfg.MetricsPort, "Prometheus metrics port")
+
+	nfs.AddFlagSets(cmd)
+}
+
+func registerKafkaFlags(flagSet *pflag.FlagSet, cfg *config.Configuration) {
+	flagSet.StringSliceVar(&cfg.Kafka.Brokers, "kafka-brokers", cfg.Kafka.Brokers, "Kafka broker addresses")
+	flagSet.StringVar(&cfg.Kafka.ClientID, "kafka-client-id", cfg.Kafka.ClientID, "Kafka client ID")
+}
+
+func registerElasticFlags(flagSet *pflag.FlagSet, cfg *config.Configuration, indexes *[]string) {
+	flagSet.StringVar(&cfg.ElasticSearch.Host, "elastic-host", cfg.ElasticSearch.Host, "Elasticsearch host URL")
+	flagSet.StringVar(&cfg.ElasticSearch.Username, "elastic-username", cfg.ElasticSearch.Username, "Elasticsearch username")
+	flagSet.StringVar(&cfg.ElasticSearch.Password, "elastic-password", cfg.ElasticSearch.Password, "Elasticsearch password")
+	flagSet.StringVar(&cfg.ElasticSearch.IndexPrefix, "elastic-index-prefix", cfg.ElasticSearch.IndexPrefix, "Index prefix")
+	flagSet.StringSliceVar(indexes, "elastic-indexes", nil, "Elasticsearch indexes to create")
+	flagSet.BoolVar(&cfg.ElasticSearch.SSLInsecureSkipVerify, "elastic-ssl-insecure", cfg.ElasticSearch.SSLInsecureSkipVerify, "Skip SSL verification")
+	flagSet.StringVar(&cfg.ElasticSearch.ResponseTimeout, "elastic-response-timeout", cfg.ElasticSearch.ResponseTimeout, "Elasticsearch response timeout")
+	flagSet.StringVar(&cfg.ElasticSearch.DialTimeout, "elastic-dial-timeout", cfg.ElasticSearch.DialTimeout, "Elasticsearch dial timeout")
+}
+
+type pipelineDef struct {
+	Name       string
+	Type       string
+	InputTopic string
+}
+
+func parsePipelines(flags []string) ([]pipelineDef, error) {
+	var pipelines []pipelineDef
+	for _, f := range flags {
+		parts := strings.SplitN(f, ":", 3)
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("invalid pipeline format %q: expected name:type:inputTopic", f)
+		}
+		pipelines = append(pipelines, pipelineDef{
+			Name:       parts[0],
+			Type:       parts[1],
+			InputTopic: parts[2],
+		})
+	}
+	return pipelines, nil
+}
+
+func parseRoutes(flags []string) (map[string]string, error) {
+	routes := make(map[string]string)
+	for _, f := range flags {
+		parts := strings.SplitN(f, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid route format %q: expected eventType=topic", f)
+		}
+		routes[parts[0]] = parts[1]
+	}
+	return routes, nil
+}
+
+func createDatastore(cfg *config.Configuration, pipelines []pipelineDef, routerInputTopic string) (*datastore.Datastore, error) {
 	dt := datastore.NewDatastore().
-		WithElasticRepository(c.Elastic)
+		WithElasticRepository(cfg.ElasticSearch)
 
-	for _, p := range c.Pipelines {
-		dt.WithKafkaConsumer(p.InputTopic, c.Kafka, p.InputTopic, fmt.Sprintf("consumer-group-%s", p.InputTopic))
+	for _, p := range pipelines {
+		dt.WithKafkaConsumer(p.InputTopic, cfg.Kafka, p.InputTopic, fmt.Sprintf("consumer-group-%s", p.InputTopic))
 	}
 
-	// create consumer for the router if any
-	if c.Router.InputTopic != "" {
-		dt.WithKafkaConsumer(c.Router.InputTopic, c.Kafka, c.Router.InputTopic, fmt.Sprintf("consumer-group-%s", c.Router.InputTopic))
+	if routerInputTopic != "" {
+		dt.WithKafkaConsumer(routerInputTopic, cfg.Kafka, routerInputTopic, fmt.Sprintf("consumer-group-%s", routerInputTopic))
 	}
 
-	dt.WithKafkaProducer("producer", c.Kafka)
+	dt.WithKafkaProducer("producer", cfg.Kafka)
 	if err := dt.Build(); err != nil {
 		return nil, err
 	}
@@ -128,9 +198,9 @@ func createDatastore(c config.StreamerConfig) (*datastore.Datastore, error) {
 	return dt, nil
 }
 
-func createPipelines(ctx context.Context, c config.StreamerConfig, dt *datastore.Datastore) error {
+func createPipelines(ctx context.Context, pipelines []pipelineDef, routes map[string]string, routerInputTopic string, dt *datastore.Datastore) error {
 	m := pipeline.NewManager()
-	for _, p := range c.Pipelines {
+	for _, p := range pipelines {
 		switch p.Type {
 		case InventoryPipeline:
 			m.ElasticPipeline(ctx, InventoryPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), worker.InventoryWorker)
@@ -141,12 +211,8 @@ func createPipelines(ctx context.Context, c config.StreamerConfig, dt *datastore
 		}
 	}
 
-	routes := map[string]string{}
-	for _, r := range c.Router.Routes {
-		routes[r.EventType] = r.Topic
-	}
-	if len(routes) > 0 {
-		m.Router(ctx, dt.MustHaveConsumer(c.Router.InputTopic), dt.MustHaveProducer("producer"), routes)
+	if len(routes) > 0 && routerInputTopic != "" {
+		m.Router(ctx, dt.MustHaveConsumer(routerInputTopic), dt.MustHaveProducer("producer"), routes)
 	}
 
 	if err := m.Build(ctx); err != nil {
@@ -154,19 +220,4 @@ func createPipelines(ctx context.Context, c config.StreamerConfig, dt *datastore
 	}
 
 	return nil
-}
-
-func init() {
-	viper.SetEnvPrefix("streamer")
-	viper.SetConfigType("yaml")
-	viper.BindEnv("elasticsearch_username")
-	viper.BindEnv("elasticsearch_password")
-	viper.AutomaticEnv()
-
-	// set defaults
-	viper.Set("elastic.responseTimeout", "90s")
-	viper.Set("elastic.dialTimeout", "1s")
-	viper.Set("sslInsecureSkipVerify", true)
-
-	rootCmd.AddCommand(runCmd)
 }
