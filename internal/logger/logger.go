@@ -5,10 +5,20 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func SetupLogger() *zap.Logger {
+func SetupLogger(format, level string) *zap.Logger {
+	lvl, err := zapcore.ParseLevel(level)
+	if err != nil {
+		lvl = zapcore.InfoLevel
+	}
+
+	encoding := "console"
+	if format == "json" {
+		encoding = "json"
+	}
+
 	loggerCfg := &zap.Config{
-		Level:    zap.NewAtomicLevelAt(zapcore.DebugLevel),
-		Encoding: "console",
+		Level:    zap.NewAtomicLevelAt(lvl),
+		Encoding: encoding,
 		EncoderConfig: zapcore.EncoderConfig{
 			TimeKey:        "time",
 			LevelKey:       "severity",
@@ -19,7 +29,9 @@ func SetupLogger() *zap.Logger {
 			LineEnding:     zapcore.DefaultLineEnding,
 			EncodeTime:     zapcore.RFC3339TimeEncoder,
 			EncodeLevel:    zapcore.LowercaseLevelEncoder,
-			EncodeDuration: zapcore.MillisDurationEncoder, EncodeCaller: zapcore.ShortCallerEncoder},
+			EncodeDuration: zapcore.MillisDurationEncoder,
+			EncodeCaller:   zapcore.ShortCallerEncoder,
+		},
 		OutputPaths:      []string{"stdout"},
 		ErrorOutputPaths: []string{"stderr"},
 	}

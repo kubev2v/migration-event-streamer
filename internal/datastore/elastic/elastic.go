@@ -17,7 +17,7 @@ type ElasticRepository struct {
 	indexPrefix string
 }
 
-func NewElasticRepository(config config.ElasticSearchConfig) (*ElasticRepository, error) {
+func NewElasticRepository(config config.ElasticSearch) (*ElasticRepository, error) {
 	elasticClient, err := NewElasticsearchClient(config)
 	if err != nil {
 		return nil, err

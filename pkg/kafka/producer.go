@@ -2,107 +2,68 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/IBM/sarama"
-	"github.com/cloudevents/sdk-go/protocol/kafka_sarama/v2"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/binding"
 	"github.com/google/uuid"
+	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/plugin/kprom"
 	"go.uber.org/zap"
 )
 
-type info struct {
-	Topic     string
-	Partition int32
-	Offset    int64
-}
-
 type KafkaProducer struct {
-	kp sarama.SyncProducer
+	cl *kgo.Client
 }
 
-func NewKafkaProducer(brokers []string, sConfig *sarama.Config) (*KafkaProducer, error) {
-	additionalConfig := sarama.NewConfig()
-	if sConfig != nil {
-		additionalConfig = sConfig
-	}
-
-	// mandatory configuration
-	additionalConfig.Producer.Return.Errors = true
-	additionalConfig.Producer.Return.Successes = true
-
-	// make it configurable ?
-	additionalConfig.Producer.RequiredAcks = sarama.WaitForAll
-
-	// clientID
-	if additionalConfig.ClientID == "" {
-		hostname, err := os.Hostname()
-		if err != nil {
-			hostname = fmt.Sprintf("clientid-producer-%v", uuid.NewString())
-		}
-
-		additionalConfig.ClientID = fmt.Sprintf("%v-%v", hostname, time.Now().Unix())
-	}
-
-	kp, err := sarama.NewSyncProducer(brokers, additionalConfig)
+func NewKafkaProducer(brokers []string, opts ...kgo.Opt) (*KafkaProducer, error) {
+	clientID, err := os.Hostname()
 	if err != nil {
-		return nil, err
+		clientID = fmt.Sprintf("producer-%s", uuid.NewString())
 	}
 
-	return &KafkaProducer{kp: kp}, err
+	defaults := []kgo.Opt{
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID(clientID),
+		kgo.RequiredAcks(kgo.AllISRAcks()),
+		kgo.WithHooks(kprom.NewMetrics("kafka_producer")),
+	}
+
+	cl, err := kgo.NewClient(append(defaults, opts...)...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kafka producer: %w", err)
+	}
+
+	return &KafkaProducer{cl: cl}, nil
 }
 
-func (m *KafkaProducer) Write(ctx context.Context, topic string, e cloudevents.Event) error {
-	msg, err := m.buildKafkaMessage(ctx, e)
-	if err != nil {
+func (p *KafkaProducer) Write(ctx context.Context, topic string, e cloudevents.Event) error {
+	if err := e.Validate(); err != nil {
 		return err
 	}
 
-	msg.Topic = topic
-
-	info, err := m.pushMessage(ctx, msg)
+	data, err := json.Marshal(e)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal cloudevent: %w", err)
 	}
 
-	zap.S().Infow("message pushed to kafka", "topic", info.Topic, "offset", info.Offset, "partition", info.Partition)
+	record := &kgo.Record{
+		Topic: topic,
+		Key:   []byte(e.ID()),
+		Value: data,
+	}
+
+	results := p.cl.ProduceSync(ctx, record)
+	if err := results.FirstErr(); err != nil {
+		return fmt.Errorf("failed to produce message: %w", err)
+	}
+
+	zap.S().Infow("message pushed to kafka", "topic", record.Topic, "offset", record.Offset, "partition", record.Partition)
 	return nil
 }
 
-func (m *KafkaProducer) pushMessage(ctx context.Context, msg *sarama.ProducerMessage) (*info, error) {
-	if msg == nil {
-		return nil, nil
-	}
-
-	partition, offset, err := m.kp.SendMessage(msg)
-	if err != nil {
-		return nil, err
-	}
-
-	info := &info{
-		Topic:     msg.Topic,
-		Partition: partition,
-		Offset:    offset,
-	}
-
-	return info, nil
-}
-
-func (m *KafkaProducer) Close(ctx context.Context) error {
-	return m.kp.Close()
-}
-
-func (m *KafkaProducer) buildKafkaMessage(ctx context.Context, event cloudevents.Event) (*sarama.ProducerMessage, error) {
-	err := event.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	ret := &sarama.ProducerMessage{}
-	err = kafka_sarama.WriteProducerMessage(ctx, binding.ToMessage(&event), ret)
-
-	return ret, err
+func (p *KafkaProducer) Close(_ context.Context) error {
+	p.cl.Close()
+	return nil
 }
