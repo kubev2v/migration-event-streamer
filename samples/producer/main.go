@@ -39,7 +39,7 @@ func main() {
 
 	flag.StringVar(&inventory, "inventory", "", "")
 	flag.StringVar(&sourceID, "source_id", uuid.NewString(), "")
-	flag.StringVar(&timeout, "timetout", "1s", "")
+	flag.StringVar(&timeout, "timeout", "1s", "")
 	flag.BoolVar(&oneShot, "oneshot", false, "send only one message")
 	flag.Parse()
 

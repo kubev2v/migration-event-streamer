@@ -28,6 +28,6 @@ infra.up:
 
 infra.down:
 	@podman kube down resources/dev.yml
-	@podman kube down resources/prometheus.yml
+	@podman kube down resources/observability.yml
 
 .PHONY: vendor build run
