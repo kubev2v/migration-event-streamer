@@ -53,7 +53,7 @@ func (e *ElasticRepository) CreateIndex(name string) error {
 		return fmt.Errorf("failed to check if index %s exists: %w", name, err)
 	}
 	if res.StatusCode == http.StatusOK {
-		res.Body.Close()
+		_ = res.Body.Close()
 		return nil
 	}
 
@@ -65,6 +65,6 @@ func (e *ElasticRepository) CreateIndex(name string) error {
 	if res.IsError() {
 		return fmt.Errorf("failed to create index %s: %w", name, err)
 	}
-	res.Body.Close()
+	_ = res.Body.Close()
 	return nil
 }

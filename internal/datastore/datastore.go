@@ -138,7 +138,7 @@ func (d *Datastore) Close(ctx context.Context) error {
 		}
 	}
 	for _, p := range d.kafkaProducers {
-		p.Close(ctx)
+		_ = p.Close(ctx)
 	}
 	return err
 }

@@ -1,4 +1,4 @@
-include .env
+-include .env
 
 GOBASE=$(shell pwd)
 GOBIN=$(GOBASE)/bin
