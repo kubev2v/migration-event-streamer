@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/kubev2v/migration-event-streamer/internal/processors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,10 +22,14 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore"
 	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
+	"github.com/kubev2v/migration-event-streamer/internal/processors"
 )
 
 var (
-	InventoryPipeline string = "inventory"
+	AssessmentPipeline      = "assessment"
+	VisitorPipeline         = "visitor"
+	PartnerCustomerPipeline = "partner_customer"
+	UserActionPipeline      = "user_action"
 )
 
 func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.Command {
@@ -199,8 +202,14 @@ func createPipelines(ctx context.Context, pipelines []pipelineDef, routes map[st
 	m := pipeline.NewManager()
 	for _, p := range pipelines {
 		switch p.Type {
-		case InventoryPipeline:
-			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.InventoryProcessor, dt.ElasticRepository().WriteInventory)
+		case AssessmentPipeline:
+			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.AssessmentProcessor, dt.ElasticRepository().WriteAssessment)
+		case VisitorPipeline:
+			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.VisitorProcessor, dt.ElasticRepository().WriteVisitor)
+		case PartnerCustomerPipeline:
+			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.PartnerCustomerProcessor, dt.ElasticRepository().WritePartnerCustomer)
+		case UserActionPipeline:
+			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.UserActionProcessor, dt.ElasticRepository().WriteUserAction)
 		}
 	}
 
