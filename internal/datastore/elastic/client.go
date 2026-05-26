@@ -40,7 +40,9 @@ func NewElasticsearchClient(config config.ElasticSearch) (*elastic.Client, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to get info from elasticsearch server: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	data, _ := io.ReadAll(resp.Body)
 	zap.S().Infof("connected to elastic search: %s", string(data))

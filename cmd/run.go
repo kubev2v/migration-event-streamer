@@ -65,7 +65,7 @@ func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.
 
 			go func() {
 				http.Handle("/metrics", promhttp.Handler())
-				http.ListenAndServe(fmt.Sprintf(":%d", cfg.MetricsPort), nil)
+				_ = http.ListenAndServe(fmt.Sprintf(":%d", cfg.MetricsPort), nil)
 			}()
 
 			dt, err := createDatastore(cfg, pipelines, routerInputTopic)

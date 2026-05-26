@@ -32,7 +32,9 @@ var (
 
 func main() {
 	logger := logger.SetupLogger("console", "debug")
-	defer logger.Sync()
+	defer func() {
+		_ = logger.Sync()
+	}()
 
 	undo := zap.ReplaceGlobals(logger)
 	defer undo()
@@ -61,7 +63,9 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("failed to create producer: %s", err)
 	}
-	defer producer.Close(context.Background())
+	defer func() {
+		_ = producer.Close(context.Background())
+	}()
 
 	for {
 		who := rand.Intn(3) + 1

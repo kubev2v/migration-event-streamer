@@ -54,7 +54,7 @@ func (d *Pipeline[T]) WithObservability() *Pipeline[T] {
 			return err
 		}
 		metrics.IncreaseProcessedMessagesCount(message.Context.GetType())
-		metrics.UpdateProcessingMetric(message.Context.GetType(), time.Now().Sub(startTimestamp))
+		metrics.UpdateProcessingMetric(message.Context.GetType(), time.Since(startTimestamp))
 		return nil
 	}
 	return d

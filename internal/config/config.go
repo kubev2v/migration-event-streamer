@@ -18,14 +18,14 @@ type Kafka struct {
 }
 
 type ElasticSearch struct {
-	Username              string `debugmap:"visible"`
-	Password              string `debugmap:"hidden"`
-	Host                  string `debugmap:"visible" default:"http://localhost:9200"`
-	IndexPrefix           string `debugmap:"visible" default:"assisted_migrations"`
+	Username              string   `debugmap:"visible"`
+	Password              string   `debugmap:"hidden"`
+	Host                  string   `debugmap:"visible" default:"http://localhost:9200"`
+	IndexPrefix           string   `debugmap:"visible" default:"assisted_migrations"`
 	Indexes               []string `debugmap:"visible"`
-	SSLInsecureSkipVerify bool   `debugmap:"sensitive" default:"true"`
-	ResponseTimeout       string `debugmap:"visible" default:"90s"`
-	DialTimeout           string `debugmap:"visible" default:"1s"`
+	SSLInsecureSkipVerify bool     `debugmap:"sensitive" default:"true"`
+	ResponseTimeout       string   `debugmap:"visible" default:"90s"`
+	DialTimeout           string   `debugmap:"visible" default:"1s"`
 }
 
 func (e ElasticSearch) GetResponseTimeout() time.Duration {

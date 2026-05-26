@@ -80,7 +80,7 @@ func (c *Consumer) Consume(ctx context.Context, messages chan entity.Message) er
 			if err := json.Unmarshal(r.Value, &event); err != nil {
 				zap.S().Warnw("failed to unmarshal cloudevent", "error", err, "topic", r.Topic, "offset", r.Offset)
 				c.cl.MarkCommitRecords(r)
-				c.cl.CommitMarkedOffsets(consumerCtx)
+				_ = c.cl.CommitMarkedOffsets(consumerCtx)
 				c.cl.AllowRebalance()
 				continue
 			}
@@ -96,7 +96,7 @@ func (c *Consumer) Consume(ctx context.Context, messages chan entity.Message) er
 			}
 
 			c.cl.MarkCommitRecords(r)
-			c.cl.CommitMarkedOffsets(consumerCtx)
+			_ = c.cl.CommitMarkedOffsets(consumerCtx)
 			c.cl.AllowRebalance()
 		}
 	}()
