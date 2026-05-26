@@ -2,15 +2,17 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
 
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"github.com/kubev2v/migration-event-streamer/internal/metrics"
 	"go.uber.org/zap"
 )
 
+const plannerTopic = "assisted.migrations.events"
+
 type RouteWriter interface {
-	Write(context.Context, string, cloudevents.Event) error
+	Write(ctx context.Context, topic string, data []byte) error
 }
 
 type Router struct {
@@ -34,23 +36,30 @@ func (r *Router) Start(ctx context.Context) {
 	defer func() { zap.S().Info("router stopped") }()
 
 	for msg := range r.input {
-		// count the messages received on the input topic
-		metrics.IncreaseMessagesCount("assisted.migrations.events")
+		ceType := msg.Event.Context.GetType()
+		metrics.IncreaseMessagesCount(plannerTopic)
 
-		topic, ok := r.routes[msg.Event.Context.GetType()]
+		topic, ok := r.routes[ceType]
 		if !ok {
-			zap.S().Warnw("failed to find output topic", "event_type", msg.Event.Context.GetType())
+			zap.S().Warnw("failed to find output topic", "event_type", ceType)
 			close(msg.CommitCh)
 			continue
 		}
 
-		if err := r.writer.Write(ctx, topic, msg.Event); err != nil {
-			zap.S().Warnw("failed to write message", "message", msg, "error", err)
+		data, err := json.Marshal(msg.Event)
+		if err != nil {
+			zap.S().Warnw("failed to marshal event", "event_type", ceType, "error", err)
 			close(msg.CommitCh)
 			continue
 		}
 
-		zap.S().Infow("message routed", "type", msg.Event.Context.GetType(), "topic", topic)
+		if err := r.writer.Write(ctx, topic, data); err != nil {
+			zap.S().Warnw("failed to write message", "event_type", ceType, "error", err)
+			close(msg.CommitCh)
+			continue
+		}
+
+		zap.S().Infow("message routed", "type", ceType, "topic", topic)
 		close(msg.CommitCh)
 	}
 }
