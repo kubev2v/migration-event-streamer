@@ -80,6 +80,6 @@ func (d *Pipeline[T]) Start(ctx context.Context) {
 
 		close(msg.CommitCh)
 
-		zap.S().Infow("message consumed", "pipeline", d.name, "id", msg.Event.Context.GetID(), "type", msg.Event.Context.GetType(), "topic", msg.Event.Extensions()["kafkatopic"])
+		zap.S().Infow("message consumed", "pipeline", d.name, "id", msg.Event.Context.GetID(), "type", msg.Event.Context.GetType())
 	}
 }

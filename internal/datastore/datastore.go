@@ -7,7 +7,7 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/kafka"
-	pkgKafka "github.com/kubev2v/migration-event-streamer/pkg/kafka"
+	plannerEvents "github.com/kubev2v/migration-planner/pkg/events"
 	"go.uber.org/zap"
 )
 
@@ -17,13 +17,13 @@ type Datastore struct {
 	buildFns       []buildFn
 	elasticRepo    *elastic.ElasticRepository
 	kafkaConsumers map[string]*kafka.Consumer
-	kafkaProducers map[string]*pkgKafka.KafkaProducer
+	kafkaProducers map[string]*plannerEvents.KafkaProducer
 }
 
 func NewDatastore() *Datastore {
 	return &Datastore{
 		kafkaConsumers: make(map[string]*kafka.Consumer),
-		kafkaProducers: make(map[string]*pkgKafka.KafkaProducer),
+		kafkaProducers: make(map[string]*plannerEvents.KafkaProducer),
 	}
 }
 
@@ -66,7 +66,7 @@ func (d *Datastore) WithKafkaProducer(name string, kConfig config.Kafka) *Datast
 		if _, ok := d.kafkaProducers[name]; ok {
 			return fmt.Errorf("failed to create kafka producer with name %s. producer already exists", name)
 		}
-		kp, err := pkgKafka.NewKafkaProducer(kConfig.Brokers)
+		kp, err := plannerEvents.NewKafkaProducer(kConfig.Brokers)
 		if err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func (d *Datastore) GetConsumer(name string) (*kafka.Consumer, error) {
 	return nil, fmt.Errorf("consumer %s not found", name)
 }
 
-func (d *Datastore) GetProducer(name string) (*pkgKafka.KafkaProducer, error) {
+func (d *Datastore) GetProducer(name string) (*plannerEvents.KafkaProducer, error) {
 	if p, ok := d.kafkaProducers[name]; ok {
 		return p, nil
 	}
@@ -112,7 +112,7 @@ func (d *Datastore) MustHaveConsumer(name string) *kafka.Consumer {
 	return c
 }
 
-func (d *Datastore) MustHaveProducer(name string) *pkgKafka.KafkaProducer {
+func (d *Datastore) MustHaveProducer(name string) *plannerEvents.KafkaProducer {
 	p, err := d.GetProducer(name)
 	if err != nil {
 		panic(err)
@@ -138,7 +138,7 @@ func (d *Datastore) Close(ctx context.Context) error {
 		}
 	}
 	for _, p := range d.kafkaProducers {
-		_ = p.Close(ctx)
+		p.Close()
 	}
 	return err
 }
