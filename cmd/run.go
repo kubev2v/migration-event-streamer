@@ -23,13 +23,13 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/datastore"
 	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
 	"github.com/kubev2v/migration-event-streamer/internal/worker"
-	basicWorker "github.com/kubev2v/migration-event-streamer/samples/worker"
 )
 
 var (
-	InventoryPipeline string = "inventory"
-	UiPipeline        string = "ui"
-	AgentPipeline     string = "agent"
+	AssessmentPipeline     = "assessment"
+	VisitorPipeline        = "visitor"
+	PartnerCustomerPipeline = "partner_customer"
+	UserActionPipeline     = "user_action"
 )
 
 func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.Command {
@@ -202,12 +202,14 @@ func createPipelines(ctx context.Context, pipelines []pipelineDef, routes map[st
 	m := pipeline.NewManager()
 	for _, p := range pipelines {
 		switch p.Type {
-		case InventoryPipeline:
-			m.ElasticPipeline(ctx, InventoryPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), worker.InventoryWorker)
-		case UiPipeline:
-			m.ElasticPipeline(ctx, UiPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), basicWorker.BasicWorker)
-		case AgentPipeline:
-			m.ElasticPipeline(ctx, AgentPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), basicWorker.BasicWorker)
+		case AssessmentPipeline:
+			m.ElasticPipeline(ctx, AssessmentPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), worker.AssessmentWorker)
+		case VisitorPipeline:
+			m.ElasticPipeline(ctx, VisitorPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), worker.VisitorWorker)
+		case PartnerCustomerPipeline:
+			m.ElasticPipeline(ctx, PartnerCustomerPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), worker.PartnerCustomerWorker)
+		case UserActionPipeline:
+			m.ElasticPipeline(ctx, UserActionPipeline, dt.MustHaveConsumer(p.InputTopic), dt.ElasticRepository(), worker.UserActionWorker)
 		}
 	}
 
