@@ -16,7 +16,7 @@ type basicEvent struct {
 	Event     string
 }
 
-func BasicWorker(ctx context.Context, e cloudevents.Event, w pipeline.Writer[entity.Event]) error {
+func BasicWorker(ctx context.Context, e cloudevents.Event, w pipeline.ElasticWriter) error {
 	index := "ui"
 	if e.Context.GetType() == "assisted.migrations.events.agent" {
 		index = "agent"
@@ -29,7 +29,7 @@ func BasicWorker(ctx context.Context, e cloudevents.Event, w pipeline.Writer[ent
 
 	body, _ := json.Marshal(ev)
 
-	return w.Write(ctx, entity.Event{
+	return w.Overwrite(ctx, entity.Event{
 		Index: index,
 		ID:    e.Context.GetID(),
 		Body:  bytes.NewReader(body),
