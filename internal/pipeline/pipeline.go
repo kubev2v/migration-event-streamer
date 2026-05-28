@@ -5,26 +5,29 @@ import (
 	"time"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"github.com/kubev2v/migration-event-streamer/internal/metrics"
 	"go.uber.org/zap"
 )
 
-type Worker[T any] func(ctx context.Context, message cloudevents.Event, writer Writer[T]) error
+type Worker func(ctx context.Context, message cloudevents.Event, writer ElasticWriter) error
 
-type Writer[T any] interface {
-	Write(context.Context, T) error
+type ElasticWriter interface {
+	Overwrite(context.Context, entity.Event) error
+	Upsert(context.Context, entity.Event) error
+	UpdateByQuery(context.Context, elastic.UpdateByQueryRequest) (*elastic.UpdateByQueryResult, error)
 }
 
-type Pipeline[T any] struct {
+type Pipeline struct {
 	name     string
-	worker   Worker[T]
-	writer   Writer[T]
+	worker   Worker
+	writer   ElasticWriter
 	messages chan entity.Message
 }
 
-func NewPipeline[T any](name string, messages chan entity.Message, writer Writer[T], worker Worker[T]) *Pipeline[T] {
-	return &Pipeline[T]{
+func NewPipeline(name string, messages chan entity.Message, writer ElasticWriter, worker Worker) *Pipeline {
+	return &Pipeline{
 		name:     name,
 		writer:   writer,
 		messages: messages,
@@ -32,19 +35,19 @@ func NewPipeline[T any](name string, messages chan entity.Message, writer Writer
 	}
 }
 
-func (d *Pipeline[T]) WithRetry() *Pipeline[T] {
+func (d *Pipeline) WithRetry() *Pipeline {
 	// wrap the original worker with a retry function
 	previous := d.worker
-	d.worker = func(ctx context.Context, message cloudevents.Event, writer Writer[T]) error {
+	d.worker = func(ctx context.Context, message cloudevents.Event, writer ElasticWriter) error {
 		// TODO add retry function
 		return previous(ctx, message, writer)
 	}
 	return d
 }
 
-func (d *Pipeline[T]) WithObservability() *Pipeline[T] {
+func (d *Pipeline) WithObservability() *Pipeline {
 	previousWorker := d.worker
-	d.worker = func(ctx context.Context, message cloudevents.Event, writer Writer[T]) error {
+	d.worker = func(ctx context.Context, message cloudevents.Event, writer ElasticWriter) error {
 		// get timestamp
 		startTimestamp := message.Context.GetTime()
 		metrics.IncreaseMessagesCount(message.Context.GetType())
@@ -60,7 +63,7 @@ func (d *Pipeline[T]) WithObservability() *Pipeline[T] {
 	return d
 }
 
-func (d *Pipeline[T]) Start(ctx context.Context) {
+func (d *Pipeline) Start(ctx context.Context) {
 	zap.S().Infof("%s pipeline started", d.name)
 	defer func() { zap.S().Infof("%s pipeline closed", d.name) }()
 

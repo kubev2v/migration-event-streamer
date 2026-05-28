@@ -17,7 +17,7 @@ type jinventory struct {
 	Inventory v1alpha1.Inventory `json:"inventory"`
 }
 
-func InventoryWorker(ctx context.Context, e cloudevents.Event, w pipeline.Writer[entity.Event]) error {
+func InventoryWorker(ctx context.Context, e cloudevents.Event, w pipeline.ElasticWriter) error {
 	var jv jinventory
 	if err := json.Unmarshal(e.Data(), &jv); err != nil {
 		return err
@@ -32,7 +32,7 @@ func InventoryWorker(ctx context.Context, e cloudevents.Event, w pipeline.Writer
 	inventory := InventorySourceToElastic(sourceID.(string), jv.Inventory)
 	data, _ := json.Marshal(inventory)
 
-	return w.Write(ctx, entity.Event{
+	return w.Overwrite(ctx, entity.Event{
 		Index: "inventory",
 		ID:    uuid.New().String(),
 		Body:  bytes.NewReader(data),
