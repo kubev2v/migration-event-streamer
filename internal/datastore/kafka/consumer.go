@@ -111,6 +111,6 @@ func (c *Consumer) Close(_ context.Context) error {
 	if c.done != nil {
 		<-c.done
 	}
-	c.cl.Close()
+	c.cl.CloseAllowingRebalance()
 	return nil
 }
