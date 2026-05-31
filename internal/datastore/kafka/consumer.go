@@ -31,12 +31,13 @@ func NewConsumer(cfg config.Kafka, topic, consumerGroupID string) (*Consumer, er
 	}
 
 	cl, err := kgo.NewClient(
+		kgo.AutoCommitMarks(),
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.ClientID(clientID),
 		kgo.ConsumerGroup(consumerGroupID),
 		kgo.ConsumeTopics(topic),
+		kgo.ConsumeStartOffset(kgo.NewOffset().AtCommitted()),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
-		kgo.DisableAutoCommit(),
 		kgo.BlockRebalanceOnPoll(),
 		kgo.WithHooks(kprom.NewMetrics("kafka_consumer")),
 	)
@@ -80,7 +81,6 @@ func (c *Consumer) Consume(ctx context.Context, messages chan entity.Message) er
 			if err := json.Unmarshal(r.Value, &event); err != nil {
 				zap.S().Warnw("failed to unmarshal cloudevent", "error", err, "topic", r.Topic, "offset", r.Offset)
 				c.cl.MarkCommitRecords(r)
-				_ = c.cl.CommitMarkedOffsets(consumerCtx)
 				c.cl.AllowRebalance()
 				continue
 			}
@@ -96,7 +96,6 @@ func (c *Consumer) Consume(ctx context.Context, messages chan entity.Message) er
 			}
 
 			c.cl.MarkCommitRecords(r)
-			_ = c.cl.CommitMarkedOffsets(consumerCtx)
 			c.cl.AllowRebalance()
 		}
 	}()
