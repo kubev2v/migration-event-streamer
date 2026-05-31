@@ -31,12 +31,13 @@ func NewConsumer(cfg config.Kafka, topic, consumerGroupID string) (*Consumer, er
 	}
 
 	cl, err := kgo.NewClient(
+		kgo.AutoCommitMarks(),
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.ClientID(clientID),
 		kgo.ConsumerGroup(consumerGroupID),
 		kgo.ConsumeTopics(topic),
+		kgo.ConsumeStartOffset(kgo.NewOffset().AtEnd()),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
-		kgo.DisableAutoCommit(),
 		kgo.BlockRebalanceOnPoll(),
 		kgo.WithHooks(kprom.NewMetrics("kafka_consumer")),
 	)
