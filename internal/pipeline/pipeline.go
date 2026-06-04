@@ -10,51 +10,60 @@ import (
 	"go.uber.org/zap"
 )
 
-type Worker[T any] func(ctx context.Context, message cloudevents.Event, writer Writer[T]) error
+type HandleFn func(context.Context, cloudevents.Event) error
+type Processor[T any] func(context.Context, cloudevents.Event) (T, error)
+type WriteFn[T any] func(context.Context, T) error
 
-type Writer[T any] interface {
-	Write(context.Context, T) error
+type Starter interface {
+	Start(context.Context)
 }
 
 type Pipeline[T any] struct {
-	name     string
-	worker   Worker[T]
-	writer   Writer[T]
-	messages chan entity.Message
+	name      string
+	processor Processor[T]
+	write     WriteFn[T]
+	handle    HandleFn
+	messages  chan entity.Message
 }
 
-func NewPipeline[T any](name string, messages chan entity.Message, writer Writer[T], worker Worker[T]) *Pipeline[T] {
-	return &Pipeline[T]{
-		name:     name,
-		writer:   writer,
-		messages: messages,
-		worker:   worker,
+func NewPipeline[T any](name string, messages chan entity.Message, processor Processor[T], write WriteFn[T]) *Pipeline[T] {
+	p := &Pipeline[T]{
+		name:      name,
+		processor: processor,
+		write:     write,
+		messages:  messages,
 	}
+	p.handle = func(ctx context.Context, event cloudevents.Event) error {
+		result, err := p.processor(ctx, event)
+		if err != nil {
+			return err
+		}
+		return p.write(ctx, result)
+	}
+	return p
 }
 
 func (d *Pipeline[T]) WithRetry() *Pipeline[T] {
-	// wrap the original worker with a retry function
-	previous := d.worker
-	d.worker = func(ctx context.Context, message cloudevents.Event, writer Writer[T]) error {
+	previous := d.handle
+	d.handle = func(ctx context.Context, event cloudevents.Event) error {
 		// TODO add retry function
-		return previous(ctx, message, writer)
+		return previous(ctx, event)
 	}
 	return d
 }
 
 func (d *Pipeline[T]) WithObservability() *Pipeline[T] {
-	previousWorker := d.worker
-	d.worker = func(ctx context.Context, message cloudevents.Event, writer Writer[T]) error {
-		// get timestamp
-		startTimestamp := message.Context.GetTime()
-		metrics.IncreaseMessagesCount(message.Context.GetType())
-		err := previousWorker(ctx, message, writer)
+	previous := d.handle
+	d.handle = func(ctx context.Context, event cloudevents.Event) error {
+		startTimestamp := event.Context.GetTime()
+		metrics.IncreaseMessagesCount(event.Context.GetType())
+		err := previous(ctx, event)
 		if err != nil {
-			metrics.IncreaseErrorProcessingCount(message.Context.GetType())
+			metrics.IncreaseErrorProcessingCount(event.Context.GetType())
 			return err
 		}
-		metrics.IncreaseProcessedMessagesCount(message.Context.GetType())
-		metrics.UpdateProcessingMetric(message.Context.GetType(), time.Since(startTimestamp))
+		metrics.IncreaseProcessedMessagesCount(event.Context.GetType())
+		metrics.UpdateProcessingMetric(event.Context.GetType(), time.Since(startTimestamp))
 		return nil
 	}
 	return d
@@ -65,12 +74,10 @@ func (d *Pipeline[T]) Start(ctx context.Context) {
 	defer func() { zap.S().Infof("%s pipeline closed", d.name) }()
 
 	for msg := range d.messages {
-		// TODO add retry and metrics
-		if err := d.worker(ctx, msg.Event, d.writer); err != nil {
+		if err := d.handle(ctx, msg.Event); err != nil {
 			zap.S().Warnw("failed to process message", "message", msg, "error", err)
 		}
 
-		// commit message
 		close(msg.CommitCh)
 
 		zap.S().Infow("message consumed", "pipeline", d.name, "id", msg.Event.Context.GetID(), "type", msg.Event.Context.GetType(), "topic", msg.Event.Extensions()["kafkatopic"])
