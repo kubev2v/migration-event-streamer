@@ -71,8 +71,8 @@ check-golangci-lint-version:
 $(GOLANGCI_LINT):
 	@echo "📦 Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."
 	@mkdir -p $(GOBIN)
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-		sh -s -- -b $(GOBIN) $(GOLANGCI_LINT_VERSION)
+	@curl -sSfL https://golangci-lint.run/install.sh | \
+	   sh -s -- -b $(GOBIN) $(GOLANGCI_LINT_VERSION)
 	@echo "✅ 'golangci-lint' installed successfully."
 
 # Run linter
