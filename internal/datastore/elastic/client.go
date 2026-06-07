@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 
 	elastic "github.com/elastic/go-elasticsearch/v8"
 	"github.com/kubev2v/migration-event-streamer/internal/config"
@@ -13,8 +14,12 @@ import (
 )
 
 func NewElasticsearchClient(config config.ElasticSearch) (*elastic.Client, error) {
+	host := config.Host
+	if host != "" && !strings.HasPrefix(host, "http://") && !strings.HasPrefix(host, "https://") {
+		host = "https://" + host
+	}
 	addresses := []string{
-		config.Host,
+		host,
 	}
 	cfg := elastic.Config{
 		Addresses: addresses,
