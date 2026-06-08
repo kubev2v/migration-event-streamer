@@ -1,9 +1,15 @@
-name: Pull Request Validations
+name: GO Validations
 
 on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
   lint:
