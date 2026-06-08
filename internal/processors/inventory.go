@@ -1,7 +1,6 @@
-package worker
+package processors
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"time"
@@ -9,7 +8,6 @@ import (
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/uuid"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
-	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
 	"github.com/kubev2v/migration-planner/api/v1alpha1"
 )
 
@@ -17,26 +15,18 @@ type jinventory struct {
 	Inventory v1alpha1.Inventory `json:"inventory"`
 }
 
-func InventoryWorker(ctx context.Context, e cloudevents.Event, w pipeline.Writer[entity.Event]) error {
+func InventoryProcessor(_ context.Context, e cloudevents.Event) (entity.Inventory, error) {
 	var jv jinventory
 	if err := json.Unmarshal(e.Data(), &jv); err != nil {
-		return err
+		return entity.Inventory{}, err
 	}
 
-	// expect to find sourceID in Extentions
 	sourceID, ok := e.Extensions()["sourceid"]
 	if !ok {
 		sourceID = uuid.NewString()
 	}
 
-	inventory := InventorySourceToElastic(sourceID.(string), jv.Inventory)
-	data, _ := json.Marshal(inventory)
-
-	return w.Write(ctx, entity.Event{
-		Index: "inventory",
-		ID:    uuid.New().String(),
-		Body:  bytes.NewReader(data),
-	})
+	return InventorySourceToElastic(sourceID.(string), jv.Inventory), nil
 }
 
 func InventorySourceToElastic(sourceID string, i v1alpha1.Inventory) entity.Inventory {

@@ -1,16 +1,8 @@
 package entity
 
 import (
-	"io"
-
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
-
-type Event struct {
-	Index string
-	ID    string
-	Body  io.ReadSeeker
-}
 
 type Message struct {
 	Event    cloudevents.Event
