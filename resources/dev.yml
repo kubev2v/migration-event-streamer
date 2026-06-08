@@ -13,21 +13,21 @@ spec:
           containerPort: 9101
       env:
         - name: KAFKA_NODE_ID
-          value: 1
+          value: "1"
         - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
           value: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
         - name: KAFKA_ADVERTISED_LISTENERS
           value: 'PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092'
         - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
-          value: 1
+          value: "1"
         - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
-          value: 0
+          value: "0"
         - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
-          value: 1
+          value: "1"
         - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
-          value: 1
+          value: "1"
         - name: KAFKA_JMX_PORT
-          value: 9101
+          value: "9101"
         - name: KAFKA_JMX_HOSTNAME
           value: localhost
         - name: KAFKA_PROCESS_ROLES
@@ -62,7 +62,7 @@ spec:
         - name: ELASTIC_PASSWORD
           value: adminadmin
         - name: bootstrap.memory_lock
-          value: true
+          value: "true"
         - name: xpack.security.enabled
           value: 'false'
         - name: xpack.security.http.ssl.enabled
@@ -76,12 +76,12 @@ spec:
           mountPath: /usr/share/kibana/data
       ports:
         - hostPort: 5601
-          containers: 5601
+          containerPort: 5601
       env:
         - name: SERVERNAME
           value: kibana
         - name: ELASTICSEARCH_HOSTS
-          value: http://elastic:9200
+          value: http://localhost:9200
         - name: ELASTICSEARCH_USERNAME
           value: kibana
         - name: ELASTICSEARCH_PASSWORD
