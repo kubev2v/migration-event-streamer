@@ -1,5 +1,7 @@
 # Builder container
-FROM docker.io/golang:1.22-bullseye as builder
+FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/go-toolset AS builder
+
+USER 0
 
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -8,7 +10,6 @@ RUN mkdir /gocache
 
 COPY . .
 
-USER 0
 RUN GOCACHE=/gocache CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /streamer main.go
 
 FROM registry.access.redhat.com/ubi9/ubi-micro
