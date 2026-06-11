@@ -2,12 +2,15 @@ package datastore
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/kafka"
 	pkgKafka "github.com/kubev2v/migration-event-streamer/pkg/kafka"
+	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/sasl/scram"
 	"go.uber.org/zap"
 )
 
@@ -66,7 +69,7 @@ func (d *Datastore) WithKafkaProducer(name string, kConfig config.Kafka) *Datast
 		if _, ok := d.kafkaProducers[name]; ok {
 			return fmt.Errorf("failed to create kafka producer with name %s. producer already exists", name)
 		}
-		kp, err := pkgKafka.NewKafkaProducer(kConfig.Brokers)
+		kp, err := pkgKafka.NewKafkaProducer(kConfig.Brokers, kafkaAuthOpts(kConfig)...)
 		if err != nil {
 			return err
 		}
@@ -75,6 +78,22 @@ func (d *Datastore) WithKafkaProducer(name string, kConfig config.Kafka) *Datast
 		return nil
 	})
 	return d
+}
+
+func kafkaAuthOpts(cfg config.Kafka) []kgo.Opt {
+	var opts []kgo.Opt
+	if cfg.TLS {
+		opts = append(opts, kgo.DialTLSConfig(&tls.Config{MinVersion: tls.VersionTLS12}))
+	}
+	if cfg.SASLUsername != "" {
+		auth := scram.Auth{User: cfg.SASLUsername, Pass: cfg.SASLPassword}
+		if cfg.SASLMechanism == "SCRAM-SHA-256" {
+			opts = append(opts, kgo.SASL(auth.AsSha256Mechanism()))
+		} else {
+			opts = append(opts, kgo.SASL(auth.AsSha512Mechanism()))
+		}
+	}
+	return opts
 }
 
 func (d *Datastore) Build() error {

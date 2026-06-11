@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"gopkg.in/yaml.v3"
 
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore"
@@ -29,8 +30,30 @@ var (
 	InventoryPipeline string = "inventory"
 )
 
+type fileConfig struct {
+	Pipelines []pipelineDef `yaml:"pipelines"`
+	Router    struct {
+		InputTopic string `yaml:"inputTopic"`
+		Routes     []struct {
+			EventType string `yaml:"eventType"`
+			Topic     string `yaml:"topic"`
+		} `yaml:"routes"`
+	} `yaml:"router"`
+	Elastic struct {
+		IndexPrefix string   `yaml:"indexPrefix"`
+		Indexes     []string `yaml:"indexes"`
+	} `yaml:"elastic"`
+}
+
+type pipelineDef struct {
+	Name       string `yaml:"name"`
+	Type       string `yaml:"type"`
+	InputTopic string `yaml:"inputTopic"`
+}
+
 func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.Command {
 	var (
+		configFile       string
 		pipelineFlags    []string
 		routeFlags       []string
 		routerInputTopic string
@@ -42,6 +65,14 @@ func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.
 		Short: "Start the streamer",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if configFile != "" {
+				fc, err := loadConfigFile(configFile)
+				if err != nil {
+					return err
+				}
+				applyFileConfig(cmd, cfg, fc, &pipelineFlags, &routeFlags, &routerInputTopic, &elasticIndexes)
+			}
+
 			zap.S().Infow("starting migration-event-streamer",
 				"version", version,
 				"git_commit", gitCommit,
@@ -99,6 +130,7 @@ func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.
 		},
 	}
 
+	runCmd.Flags().StringVar(&configFile, "config", "", "Path to YAML configuration file")
 	registerFlags(runCmd, cfg, &pipelineFlags, &routeFlags, &routerInputTopic, &elasticIndexes)
 	cobraflags.CobraOnInitialize("STREAMER", runCmd)
 
@@ -128,6 +160,10 @@ func registerFlags(cmd *cobra.Command, cfg *config.Configuration, pipelineFlags,
 func registerKafkaFlags(flagSet *pflag.FlagSet, cfg *config.Configuration) {
 	flagSet.StringSliceVar(&cfg.Kafka.Brokers, "kafka-brokers", cfg.Kafka.Brokers, "Kafka broker addresses")
 	flagSet.StringVar(&cfg.Kafka.ClientID, "kafka-client-id", cfg.Kafka.ClientID, "Kafka client ID")
+	flagSet.BoolVar(&cfg.Kafka.TLS, "kafka-tls", cfg.Kafka.TLS, "Enable TLS for Kafka connections")
+	flagSet.StringVar(&cfg.Kafka.SASLUsername, "kafka-sasl-username", cfg.Kafka.SASLUsername, "SASL username for Kafka authentication")
+	flagSet.StringVar(&cfg.Kafka.SASLPassword, "kafka-sasl-password", cfg.Kafka.SASLPassword, "SASL password for Kafka authentication")
+	flagSet.StringVar(&cfg.Kafka.SASLMechanism, "kafka-sasl-mechanism", cfg.Kafka.SASLMechanism, "SASL mechanism (SCRAM-SHA-256 or SCRAM-SHA-512)")
 }
 
 func registerElasticFlags(flagSet *pflag.FlagSet, cfg *config.Configuration, indexes *[]string) {
@@ -139,12 +175,6 @@ func registerElasticFlags(flagSet *pflag.FlagSet, cfg *config.Configuration, ind
 	flagSet.BoolVar(&cfg.ElasticSearch.SSLInsecureSkipVerify, "elastic-ssl-insecure", cfg.ElasticSearch.SSLInsecureSkipVerify, "Skip SSL verification")
 	flagSet.StringVar(&cfg.ElasticSearch.ResponseTimeout, "elastic-response-timeout", cfg.ElasticSearch.ResponseTimeout, "Elasticsearch response timeout")
 	flagSet.StringVar(&cfg.ElasticSearch.DialTimeout, "elastic-dial-timeout", cfg.ElasticSearch.DialTimeout, "Elasticsearch dial timeout")
-}
-
-type pipelineDef struct {
-	Name       string
-	Type       string
-	InputTopic string
 }
 
 func parsePipelines(flags []string) ([]pipelineDef, error) {
@@ -213,4 +243,38 @@ func createPipelines(ctx context.Context, pipelines []pipelineDef, routes map[st
 	}
 
 	return nil
+}
+
+func loadConfigFile(path string) (*fileConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+	var fc fileConfig
+	if err := yaml.Unmarshal(data, &fc); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+	return &fc, nil
+}
+
+func applyFileConfig(cmd *cobra.Command, cfg *config.Configuration, fc *fileConfig, pipelineFlags, routeFlags *[]string, routerInputTopic *string, elasticIndexes *[]string) {
+	if len(*pipelineFlags) == 0 {
+		for _, p := range fc.Pipelines {
+			*pipelineFlags = append(*pipelineFlags, fmt.Sprintf("%s:%s:%s", p.Name, p.Type, p.InputTopic))
+		}
+	}
+	if *routerInputTopic == "" {
+		*routerInputTopic = fc.Router.InputTopic
+	}
+	if len(*routeFlags) == 0 {
+		for _, r := range fc.Router.Routes {
+			*routeFlags = append(*routeFlags, fmt.Sprintf("%s=%s", r.EventType, r.Topic))
+		}
+	}
+	if len(*elasticIndexes) == 0 {
+		*elasticIndexes = fc.Elastic.Indexes
+	}
+	if f := cmd.Flags().Lookup("elastic-index-prefix"); f != nil && !f.Changed && fc.Elastic.IndexPrefix != "" {
+		cfg.ElasticSearch.IndexPrefix = fc.Elastic.IndexPrefix
+	}
 }
