@@ -1,0 +1,33 @@
+package entity
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// UserAction represents a user action tracking document in Elasticsearch
+type UserAction struct {
+	ID           string  `json:"id"`
+	EventSource  string  `json:"event_source"`
+	Username     string  `json:"username"`
+	AssessmentID *string `json:"assessment_id,omitempty"`
+	SourceID     *string `json:"source_id,omitempty"`
+	PartnerID    *string `json:"partner_id,omitempty"`
+	ActionType   string  `json:"action_type"`
+	Timestamp    string  `json:"timestamp"`
+}
+
+// NewUserAction creates a new UserAction entity with auto-generated ID
+func NewUserAction(username string, assessmentID, sourceID, partnerID *string, actionType string, timestamp time.Time, eventSource string) *UserAction {
+	return &UserAction{
+		ID:           uuid.New().String(),
+		EventSource:  eventSource,
+		Username:     username,
+		AssessmentID: assessmentID,
+		SourceID:     sourceID,
+		PartnerID:    partnerID,
+		ActionType:   actionType,
+		Timestamp:    timestamp.Format(time.RFC3339),
+	}
+}
