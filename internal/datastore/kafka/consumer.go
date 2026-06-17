@@ -36,7 +36,6 @@ func NewConsumer(cfg config.Kafka, topic, consumerGroupID string) (*Consumer, er
 		kgo.ClientID(clientID),
 		kgo.ConsumerGroup(consumerGroupID),
 		kgo.ConsumeTopics(topic),
-		kgo.ConsumeStartOffset(kgo.NewOffset().AtCommitted()),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 		kgo.BlockRebalanceOnPoll(),
 		kgo.WithHooks(kprom.NewMetrics("kafka_consumer")),
