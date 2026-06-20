@@ -17,7 +17,7 @@ import (
 
 const (
 	assessmentCreatedEventType = "assisted.migration.assessment.created"
-	visitorEventType           = "assisted.migration.visitor.visited"
+	visitorEventType           = "assisted.migration.user_action.visited"
 	partnerCustomerEventType   = "assisted.migration.partner_customer.updated"
 	userActionEventType        = "assisted.migration.user_action.assessment_shared"
 	inputTopic                 = "assisted.migration.events"
@@ -92,10 +92,12 @@ func main() {
 		case 2:
 			e.SetType(visitorEventType)
 			payload := map[string]any{
-				"visitor": map[string]any{
+				"user_action": map[string]any{
 					"username":  "testuser",
-					"org_id":    "test-org",
 					"timestamp": now,
+					"data": map[string]any{
+						"org_id": "test-org",
+					},
 				},
 			}
 			_ = e.SetData(cloudevents.ApplicationJSON, payload)

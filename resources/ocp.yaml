@@ -36,24 +36,17 @@ objects:
     data:
       config.yml: |
         pipelines:
-          - name: inventory
-            type: inventory
-            inputTopic: assisted.migrations.events.inventory
-          - name: ui
-            type: ui
-            inputTopic: assisted.migrations.events.ui
-          - name: agent
-            type: agent
-            inputTopic: assisted.migrations.events.agent
+          - assessment.created
+          - assessment.deleted
+          - partner_customer.updated
+          - user_action.visited
+          - user_action.assessment_shared
+          - user_action.assessment_unshared
+          - user_action.sizing_requested
+          - user_action.complexity_estimated
+          - user_action.ova_downloaded
         router:
           inputTopic: assisted.migrations.events
-          routes:
-            - eventType: assisted.migrations.events.inventory
-              topic: assisted.migrations.events.inventory
-            - eventType: assisted.migrations.events.ui
-              topic: assisted.migrations.events.ui
-            - eventType: assisted.migrations.events.agent
-              topic: assisted.migrations.events.agent
         kafka:
           brokers:
             - ${KAFKA_BROKER_1}
@@ -62,11 +55,12 @@ objects:
           clientID: ${KAFKA_CLIENT_ID}
           tls: ${KAFKA_USE_TLS}
         elastic:
-          indexPrefix: assisted_migrations
           indexes:
-            - assisted_migrations_inventory
-            - assisted_migrations_ui
-            - assisted_migrations_agent
+            - assessment
+            - datastore
+            - os
+            - partner_customer
+            - user_action
           host: ${ELASTIC_HOST} 
           sslInsecureSkipVerify: true
 

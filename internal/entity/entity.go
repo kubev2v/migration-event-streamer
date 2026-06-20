@@ -15,3 +15,7 @@ func NewMessage(e cloudevents.Event) Message {
 		CommitCh: make(chan any),
 	}
 }
+
+type Event[T any] struct {
+	Payload T
+}

@@ -3,41 +3,28 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
-	"time"
-
 	"github.com/fatih/color"
 	"github.com/go-extras/cobraflags"
 	"github.com/jzelinskie/cobrautil/v2"
+	"github.com/kubev2v/migration-event-streamer/internal/config"
+	"github.com/kubev2v/migration-event-streamer/internal/datastore"
+	"github.com/kubev2v/migration-event-streamer/internal/namespace"
+	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/kubev2v/migration-event-streamer/internal/config"
-	"github.com/kubev2v/migration-event-streamer/internal/datastore"
-	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
-	"github.com/kubev2v/migration-event-streamer/internal/processors"
-)
-
-var (
-	AssessmentPipeline      = "assessment"
-	VisitorPipeline         = "visitor"
-	PartnerCustomerPipeline = "partner_customer"
-	UserActionPipeline      = "user_action"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.Command {
 	var (
 		pipelineFlags    []string
-		routeFlags       []string
 		routerInputTopic string
-		elasticIndexes   []string
 	)
 
 	runCmd := &cobra.Command{
@@ -48,67 +35,52 @@ func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.
 			zap.S().Infow("starting migration-event-streamer",
 				"version", version,
 				"git_commit", gitCommit,
+				"namespace", namespace.Namespace(),
 				"config", cfg.FlatDebugMap(),
 			)
-
-			pipelines, err := parsePipelines(pipelineFlags)
-			if err != nil {
-				return err
-			}
-
-			routes, err := parseRoutes(routeFlags)
-			if err != nil {
-				return err
-			}
-
-			cfg.ElasticSearch.Indexes = elasticIndexes
 
 			go func() {
 				http.Handle("/metrics", promhttp.Handler())
 				_ = http.ListenAndServe(fmt.Sprintf(":%d", cfg.MetricsPort), nil)
 			}()
 
-			dt, err := createDatastore(cfg, pipelines, routerInputTopic)
+			envTopic := namespace.Topic()
+
+			dt, err := createDatastore(cfg, routerInputTopic, envTopic)
 			if err != nil {
 				return err
 			}
 
+			defer func() {
+				closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer closeCancel()
+				zap.S().Info("shutting down...")
+				if err := dt.Close(closeCtx); err != nil {
+					zap.S().Errorf("closed with error: %s", err)
+				}
+				zap.S().Info("streamer shutdown")
+			}()
+
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGQUIT)
 			defer cancel()
 
-			if err := createPipelines(ctx, pipelines, routes, routerInputTopic, dt); err != nil {
+			if err := createAndStartPipelines(ctx, pipelineFlags, routerInputTopic, envTopic, dt); err != nil {
 				return err
 			}
 
 			<-ctx.Done()
 
-			closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer closeCancel()
-
-			zap.S().Info("shutting down...")
-			defer func() { zap.S().Info("streamer shutdown") }()
-
-			g, gCtx := errgroup.WithContext(closeCtx)
-			g.Go(func() error {
-				return dt.Close(gCtx)
-			})
-
-			if err := g.Wait(); err != nil {
-				zap.S().Errorf("closed with error: %s", err)
-				return err
-			}
-
 			return nil
 		},
 	}
 
-	registerFlags(runCmd, cfg, &pipelineFlags, &routeFlags, &routerInputTopic, &elasticIndexes)
+	registerFlags(runCmd, cfg, &pipelineFlags, &routerInputTopic, &cfg.ElasticSearch.Indexes)
 	cobraflags.CobraOnInitialize("STREAMER", runCmd)
 
 	return runCmd
 }
 
-func registerFlags(cmd *cobra.Command, cfg *config.Configuration, pipelineFlags, routeFlags *[]string, routerInputTopic *string, elasticIndexes *[]string) {
+func registerFlags(cmd *cobra.Command, cfg *config.Configuration, pipelineFlags *[]string, routerInputTopic *string, elasticIndexes *[]string) {
 	nfs := cobrautil.NewNamedFlagSets(cmd)
 
 	kafkaFlags := nfs.FlagSet(color.New(color.FgBlue, color.Bold).Sprint("Kafka"))
@@ -118,9 +90,9 @@ func registerFlags(cmd *cobra.Command, cfg *config.Configuration, pipelineFlags,
 	registerElasticFlags(elasticFlags, cfg, elasticIndexes)
 
 	pipelineFlagSet := nfs.FlagSet(color.New(color.FgBlue, color.Bold).Sprint("Pipelines"))
-	pipelineFlagSet.StringArrayVar(pipelineFlags, "pipeline", nil, "Pipeline definition as name:type:inputTopic (repeatable)")
-	pipelineFlagSet.StringVar(routerInputTopic, "router-input-topic", "", "Router input topic")
-	pipelineFlagSet.StringArrayVar(routeFlags, "route", nil, "Route definition as eventType=topic (repeatable)")
+	pipelineFlagSet.StringArrayVar(pipelineFlags, "pipeline", nil, "Pipeline definition as entity.action (e.g., assessment.created)")
+	pipelineFlagSet.StringVar(routerInputTopic, "router-input-topic", "", "Shared input topic")
+	_ = cmd.MarkFlagRequired("router-input-topic")
 
 	observabilityFlags := nfs.FlagSet(color.New(color.FgBlue, color.Bold).Sprint("Observability"))
 	observabilityFlags.IntVar(&cfg.MetricsPort, "metrics-port", cfg.MetricsPort, "Prometheus metrics port")
@@ -137,60 +109,19 @@ func registerElasticFlags(flagSet *pflag.FlagSet, cfg *config.Configuration, ind
 	flagSet.StringVar(&cfg.ElasticSearch.Host, "elastic-host", cfg.ElasticSearch.Host, "Elasticsearch host URL")
 	flagSet.StringVar(&cfg.ElasticSearch.Username, "elastic-username", cfg.ElasticSearch.Username, "Elasticsearch username")
 	flagSet.StringVar(&cfg.ElasticSearch.Password, "elastic-password", cfg.ElasticSearch.Password, "Elasticsearch password")
-	flagSet.StringVar(&cfg.ElasticSearch.IndexPrefix, "elastic-index-prefix", cfg.ElasticSearch.IndexPrefix, "Index prefix")
 	flagSet.StringSliceVar(indexes, "elastic-indexes", nil, "Elasticsearch indexes to create")
 	flagSet.BoolVar(&cfg.ElasticSearch.SSLInsecureSkipVerify, "elastic-ssl-insecure", cfg.ElasticSearch.SSLInsecureSkipVerify, "Skip SSL verification")
 	flagSet.StringVar(&cfg.ElasticSearch.ResponseTimeout, "elastic-response-timeout", cfg.ElasticSearch.ResponseTimeout, "Elasticsearch response timeout")
 	flagSet.StringVar(&cfg.ElasticSearch.DialTimeout, "elastic-dial-timeout", cfg.ElasticSearch.DialTimeout, "Elasticsearch dial timeout")
 }
 
-type pipelineDef struct {
-	Name       string
-	Type       string
-	InputTopic string
-}
+func createDatastore(cfg *config.Configuration, routerInputTopic, envTopic string) (*datastore.Datastore, error) {
+	dt := datastore.NewDatastore().WithElasticRepository(cfg.ElasticSearch)
 
-func parsePipelines(flags []string) ([]pipelineDef, error) {
-	var pipelines []pipelineDef
-	for _, f := range flags {
-		parts := strings.SplitN(f, ":", 3)
-		if len(parts) != 3 {
-			return nil, fmt.Errorf("invalid pipeline format %q: expected name:type:inputTopic", f)
-		}
-		pipelines = append(pipelines, pipelineDef{
-			Name:       parts[0],
-			Type:       parts[1],
-			InputTopic: parts[2],
-		})
-	}
-	return pipelines, nil
-}
-
-func parseRoutes(flags []string) (map[string]string, error) {
-	routes := make(map[string]string)
-	for _, f := range flags {
-		parts := strings.SplitN(f, "=", 2)
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid route format %q: expected eventType=topic", f)
-		}
-		routes[parts[0]] = parts[1]
-	}
-	return routes, nil
-}
-
-func createDatastore(cfg *config.Configuration, pipelines []pipelineDef, routerInputTopic string) (*datastore.Datastore, error) {
-	dt := datastore.NewDatastore().
-		WithElasticRepository(cfg.ElasticSearch)
-
-	for _, p := range pipelines {
-		dt.WithKafkaConsumer(p.InputTopic, cfg.Kafka, p.InputTopic, fmt.Sprintf("consumer-group-%s", p.InputTopic))
-	}
-
-	if routerInputTopic != "" {
-		dt.WithKafkaConsumer(routerInputTopic, cfg.Kafka, routerInputTopic, fmt.Sprintf("consumer-group-%s", routerInputTopic))
-	}
-
+	dt.WithKafkaConsumer("router", cfg.Kafka, routerInputTopic, fmt.Sprintf("consumer-group-%s", routerInputTopic))
+	dt.WithKafkaConsumer("dispatcher", cfg.Kafka, envTopic, fmt.Sprintf("consumer-group-%s", envTopic))
 	dt.WithKafkaProducer("producer", cfg.Kafka)
+
 	if err := dt.Build(); err != nil {
 		return nil, err
 	}
@@ -198,30 +129,50 @@ func createDatastore(cfg *config.Configuration, pipelines []pipelineDef, routerI
 	return dt, nil
 }
 
-func createPipelines(ctx context.Context, pipelines []pipelineDef, routes map[string]string, routerInputTopic string, dt *datastore.Datastore) error {
-	m := pipeline.NewManager()
-	for _, p := range pipelines {
-		switch p.Type {
-		case AssessmentPipeline:
-			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.AssessmentProcessor, dt.ElasticRepository().WriteAssessment)
-		case VisitorPipeline:
-			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.VisitorProcessor, dt.ElasticRepository().WriteVisitor)
-		case PartnerCustomerPipeline:
-			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.PartnerCustomerProcessor, dt.ElasticRepository().WritePartnerCustomer)
-		case UserActionPipeline:
-			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.UserActionProcessor, dt.ElasticRepository().WriteUserAction)
-		default:
-			return fmt.Errorf("unknown pipeline type %q for pipeline %q", p.Type, p.Name)
-		}
-	}
+func createAndStartPipelines(ctx context.Context, pipelineFlags []string, routerInputTopic, envTopic string, dt *datastore.Datastore) error {
+	routerConsumer := dt.MustHaveConsumer("router")
+	dispatcherConsumer := dt.MustHaveConsumer("dispatcher")
+	producer := dt.MustHaveProducer("producer")
+	repo := dt.ElasticRepository()
 
-	if len(routes) > 0 && routerInputTopic != "" {
-		m.Router(ctx, dt.MustHaveConsumer(routerInputTopic), dt.MustHaveProducer("producer"), routes)
-	}
-
-	if err := m.Build(ctx); err != nil {
+	m, err := pipeline.NewManager(ctx, routerConsumer, dispatcherConsumer, producer)
+	if err != nil {
 		return err
 	}
+
+	for _, key := range pipelineFlags {
+		switch key {
+		case pipeline.AssessmentCreated:
+			m.WithAssessmentCreatedPipeline(repo)
+		case pipeline.AssessmentDeleted:
+			m.WithAssessmentDeletedPipeline(repo)
+		case pipeline.UserActionVisited:
+			m.WithVisitedPipeline(repo)
+		case pipeline.PartnerCustomerUpdated:
+			m.WithPartnerCustomerUpdatedPipeline(repo)
+		case pipeline.UserActionShared:
+			m.WithShareAssessmentPipeline(repo)
+		case pipeline.UserActionUnshared:
+			m.WithUnshareAssessmentPipeline(repo)
+		case pipeline.UserActionSizingRequested:
+			m.WithSizingRequestedPipeline(repo)
+		case pipeline.UserActionComplexity:
+			m.WithComplexityEstimatedPipeline(repo)
+		case pipeline.UserActionOVADownloaded:
+			m.WithOVADownloadedPipeline(repo)
+		default:
+			return fmt.Errorf("unknown pipeline %q", key)
+		}
+		zap.S().Infow("pipeline registered", "key", key)
+	}
+
+	m.Start(ctx)
+
+	zap.S().Infow("pipelines started",
+		"router_input_topic", routerInputTopic,
+		"env_topic", envTopic,
+		"pipelines", pipelineFlags,
+	)
 
 	return nil
 }

@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 
+	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"go.uber.org/zap"
 )
@@ -11,64 +12,92 @@ type Consumer interface {
 	Consume(context.Context, chan entity.Message) error
 }
 
-type buildFn func() error
-
 type Manager struct {
-	buildFns  []buildFn
-	pipelines []Starter
-	router    *Router
+	router       *Router
+	dispatcher   *Dispatcher
+	errorHandler ErrorHandler
+	errorCh      chan PipelineError
 }
 
-func NewManager() *Manager {
-	return &Manager{
-		buildFns:  []buildFn{},
-		pipelines: []Starter{},
+func NewManager(ctx context.Context, routerConsumer, dispatcherConsumer Consumer, writer RouteWriter) (*Manager, error) {
+	routerCh := make(chan entity.Message)
+	dispatcherCh := make(chan entity.Message)
+	errorCh := make(chan PipelineError, 100)
+
+	router := NewRouter(routerCh, writer)
+	dispatcher := NewDispatcher(dispatcherCh, errorCh)
+	errorHandler := NewLogErrorHandler(errorCh)
+
+	m := &Manager{
+		router:       router,
+		dispatcher:   dispatcher,
+		errorHandler: errorHandler,
+		errorCh:      errorCh,
 	}
+
+	if err := routerConsumer.Consume(ctx, routerCh); err != nil {
+		return nil, err
+	}
+	if err := dispatcherConsumer.Consume(ctx, dispatcherCh); err != nil {
+		return nil, err
+	}
+
+	zap.S().Info("manager created with router and dispatcher")
+	return m, nil
 }
 
-func AddPipeline[T any](m *Manager, ctx context.Context, name string, consumer Consumer, processor Processor[T], writeFn WriteFn[T]) {
-	m.buildFns = append(m.buildFns, func() error {
+func (m *Manager) Start(ctx context.Context) {
+	m.errorHandler.Start(ctx)
+	m.router.Start(ctx)
+	m.dispatcher.Start(ctx)
 
-		messages := make(chan entity.Message)
-		if err := consumer.Consume(ctx, messages); err != nil {
-			return err
-		}
-
-		p := NewPipeline(name, messages, processor, writeFn).WithRetry().WithObservability()
-		m.pipelines = append(m.pipelines, p)
-
-		zap.S().Infof("%q pipeline created", name)
-		return nil
-	})
+	go func() {
+		<-m.dispatcher.Done()
+		close(m.errorCh)
+	}()
 }
 
-func (m *Manager) Router(ctx context.Context, consumer Consumer, writer RouteWriter, topicMap map[string]string) *Manager {
-	m.buildFns = append(m.buildFns, func() error {
-		messages := make(chan entity.Message)
-		if err := consumer.Consume(ctx, messages); err != nil {
-			return err
-		}
-
-		m.router = NewRouter(messages, writer, topicMap)
-
-		zap.S().Info("router created")
-
-		return nil
-	})
+func (m *Manager) WithAssessmentCreatedPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithAssessmentCreatedPipeline(w)
 	return m
 }
 
-func (m *Manager) Build(ctx context.Context) error {
-	for _, buildFn := range m.buildFns {
-		if err := buildFn(); err != nil {
-			return err
-		}
-	}
+func (m *Manager) WithAssessmentDeletedPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithAssessmentDeletedPipeline(w)
+	return m
+}
 
-	for _, p := range m.pipelines {
-		go p.Start(ctx)
-	}
+func (m *Manager) WithVisitedPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithVisitedPipeline(w)
+	return m
+}
 
-	go m.router.Start(ctx)
-	return nil
+func (m *Manager) WithPartnerCustomerUpdatedPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithPartnerCustomerUpdatedPipeline(w)
+	return m
+}
+
+func (m *Manager) WithShareAssessmentPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithShareAssessmentPipeline(w)
+	return m
+}
+
+func (m *Manager) WithUnshareAssessmentPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithUnshareAssessmentPipeline(w)
+	return m
+}
+
+func (m *Manager) WithSizingRequestedPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithSizingRequestedPipeline(w)
+	return m
+}
+
+func (m *Manager) WithComplexityEstimatedPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithComplexityEstimatedPipeline(w)
+	return m
+}
+
+func (m *Manager) WithOVADownloadedPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithOVADownloadedPipeline(w)
+	return m
 }
