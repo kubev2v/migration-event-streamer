@@ -5,82 +5,134 @@ import (
 	"encoding/json"
 	"fmt"
 
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
-	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
 	plannerEvents "github.com/kubev2v/migration-planner/pkg/events"
 	"go.uber.org/zap"
 )
 
-func UserActionProcessor(_ context.Context, e cloudevents.Event) (*entity.UserAction, error) {
-	var payload plannerEvents.UserActionEventPayload
-	if err := json.Unmarshal(e.Data(), &payload); err != nil {
-		zap.S().Errorw("failed to unmarshal user_action event", "error", err)
-		return nil, err
-	}
-
-	action := payload.UserAction
-	actionType := pipeline.ExtractAction(e.Context.GetType())
-
+func ShareAssessmentProcessor(_ context.Context, event plannerEvents.UserActionEventPayload) (entity.ShareAssessmentResult, error) {
+	action := event.UserAction
 	dataBytes, err := json.Marshal(action.Data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal action data: %w", err)
+		return entity.ShareAssessmentResult{}, fmt.Errorf("failed to marshal action data: %w", err)
 	}
 
-	var assessmentID, sourceID, partnerID *string
-
-	switch actionType {
-	case entity.UserActionShareAssessment:
-		var data plannerEvents.ShareAssessmentActionData
-		if err := json.Unmarshal(dataBytes, &data); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal share assessment data: %w", err)
-		}
-		assessmentID = &data.AssessmentID
-		partnerID = &data.PartnerID
-
-	case entity.UserActionUnshareAssessment:
-		var data plannerEvents.UnshareAssessmentActionData
-		if err := json.Unmarshal(dataBytes, &data); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal unshare assessment data: %w", err)
-		}
-		assessmentID = &data.AssessmentID
-
-	case entity.UserActionSizingRequested:
-		var data plannerEvents.SizingActionData
-		if err := json.Unmarshal(dataBytes, &data); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal sizing data: %w", err)
-		}
-		assessmentID = &data.AssessmentID
-
-	case entity.UserActionComplexityEstimated:
-		var data plannerEvents.ComplexityActionData
-		if err := json.Unmarshal(dataBytes, &data); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal complexity data: %w", err)
-		}
-		assessmentID = &data.AssessmentID
-
-	case entity.UserActionOVADownloaded:
-		var data plannerEvents.OVADownloadActionData
-		if err := json.Unmarshal(dataBytes, &data); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal ova download data: %w", err)
-		}
-		sourceID = &data.SourceID
-
-	default:
-		return nil, fmt.Errorf("unknown user_action type: %s", actionType)
+	var data plannerEvents.ShareAssessmentActionData
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return entity.ShareAssessmentResult{}, fmt.Errorf("failed to unmarshal share assessment data: %w", err)
 	}
 
-	zap.S().Infow("processing user_action event",
-		"username", action.Username,
-		"action_type", actionType)
+	zap.S().Infow("processing share assessment event")
 
-	return entity.NewUserAction(
+	return entity.NewShareAssessmentResult(
 		action.Username,
-		assessmentID,
-		sourceID,
-		partnerID,
-		actionType,
+		data.AssessmentID,
+		data.PartnerID,
 		action.Timestamp,
-		e.Context.GetSource(),
+	), nil
+}
+
+func UnshareAssessmentProcessor(_ context.Context, event plannerEvents.UserActionEventPayload) (entity.UnshareAssessmentResult, error) {
+	action := event.UserAction
+	dataBytes, err := json.Marshal(action.Data)
+	if err != nil {
+		return entity.UnshareAssessmentResult{}, fmt.Errorf("failed to marshal action data: %w", err)
+	}
+
+	var data plannerEvents.UnshareAssessmentActionData
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return entity.UnshareAssessmentResult{}, fmt.Errorf("failed to unmarshal unshare assessment data: %w", err)
+	}
+
+	zap.S().Infow("processing unshare assessment event")
+
+	return entity.NewUnshareAssessmentResult(
+		action.Username,
+		data.AssessmentID,
+		action.Timestamp,
+	), nil
+}
+
+func SizingRequestedProcessor(_ context.Context, event plannerEvents.UserActionEventPayload) (entity.SizingRequestedResult, error) {
+	action := event.UserAction
+	dataBytes, err := json.Marshal(action.Data)
+	if err != nil {
+		return entity.SizingRequestedResult{}, fmt.Errorf("failed to marshal action data: %w", err)
+	}
+
+	var data plannerEvents.SizingActionData
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return entity.SizingRequestedResult{}, fmt.Errorf("failed to unmarshal sizing data: %w", err)
+	}
+
+	zap.S().Infow("processing sizing request event")
+
+	return entity.NewSizingRequestedResult(
+		action.Username,
+		data.AssessmentID,
+		action.Timestamp,
+	), nil
+}
+
+func ComplexityEstimatedProcessor(_ context.Context, event plannerEvents.UserActionEventPayload) (entity.ComplexityEstimatedResult, error) {
+	action := event.UserAction
+	dataBytes, err := json.Marshal(action.Data)
+	if err != nil {
+		return entity.ComplexityEstimatedResult{}, fmt.Errorf("failed to marshal action data: %w", err)
+	}
+
+	var data plannerEvents.ComplexityActionData
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return entity.ComplexityEstimatedResult{}, fmt.Errorf("failed to unmarshal complexity data: %w", err)
+	}
+
+	zap.S().Infow("processing complexity estimation event")
+
+	return entity.NewComplexityEstimatedResult(
+		action.Username,
+		data.AssessmentID,
+		action.Timestamp,
+	), nil
+}
+
+func OVADownloadedProcessor(_ context.Context, event plannerEvents.UserActionEventPayload) (entity.OVADownloadedResult, error) {
+	action := event.UserAction
+	dataBytes, err := json.Marshal(action.Data)
+	if err != nil {
+		return entity.OVADownloadedResult{}, fmt.Errorf("failed to marshal action data: %w", err)
+	}
+
+	var data plannerEvents.OVADownloadActionData
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return entity.OVADownloadedResult{}, fmt.Errorf("failed to unmarshal ova download data: %w", err)
+	}
+
+	zap.S().Infow("processing ova download event")
+
+	return entity.NewOVADownloadedResult(
+		action.Username,
+		data.SourceID,
+		action.Timestamp,
+	), nil
+}
+
+func VisitedProcessor(_ context.Context, event plannerEvents.UserActionEventPayload) (entity.VisitedResult, error) {
+	action := event.UserAction
+	dataBytes, err := json.Marshal(action.Data)
+	if err != nil {
+		return entity.VisitedResult{}, fmt.Errorf("failed to marshal action data: %w", err)
+	}
+
+	var data plannerEvents.VisitorActionData
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return entity.VisitedResult{}, fmt.Errorf("failed to unmarshal visitor data: %w", err)
+	}
+
+	zap.S().Infow("processing visited event")
+
+	return entity.NewVisitedResult(
+		action.Username,
+		data.OrgID,
+		action.Timestamp,
 	), nil
 }

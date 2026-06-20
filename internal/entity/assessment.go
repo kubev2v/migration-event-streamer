@@ -13,20 +13,21 @@ const (
 	DeletedStatus = "deleted"
 )
 
-type AssessmentResult struct {
-	Action     string
-	Assessment *Assessment
-	OSEntries  []*AssessmentOS
-	Datastores []*AssessmentDatastore
-	DeletedID  string
-	DeletedAt  string
+type AssessmentCreatedResult struct {
+	Assessment Assessment
+	OSEntries  []AssessmentOS
+	Datastores []AssessmentDatastore
+}
+
+type AssessmentDeletedResult struct {
+	DeletedID string
+	DeletedAt string
 }
 
 // Assessment represents an assessment document in Elasticsearch
 type Assessment struct {
 	Index                       string  `json:"-"`
 	AssessmentID                string  `json:"assessment_id"`
-	EventSource                 string  `json:"event_source"`
 	Name                        string  `json:"name"`
 	OrgID                       string  `json:"org_id"`
 	Username                    string  `json:"username"`
@@ -51,7 +52,6 @@ type Assessment struct {
 type AssessmentOS struct {
 	Index        string  `json:"-"`
 	ID           string  `json:"-"`
-	EventSource  string  `json:"event_source"`
 	AssessmentID string  `json:"assessment_id"`
 	SnapshotID   string  `json:"snapshot_id"`
 	OSType       string  `json:"os_type"`
@@ -68,7 +68,6 @@ type AssessmentOS struct {
 type AssessmentDatastore struct {
 	Index           string  `json:"-"`
 	ID              string  `json:"-"`
-	EventSource     string  `json:"event_source"`
 	AssessmentID    string  `json:"assessment_id"`
 	SnapshotID      string  `json:"snapshot_id"`
 	DatastoreIndex  int     `json:"datastore_index"`
@@ -84,11 +83,10 @@ type AssessmentDatastore struct {
 }
 
 // NewAssessment creates a new Assessment entity
-func NewAssessment(id, name, orgID, username, sourceType, status string, createdAt time.Time, snapshotID, vCenterID, eventSource string) *Assessment {
+func NewAssessment(id, name, orgID, username, sourceType, status string, createdAt time.Time, snapshotID, vCenterID string) *Assessment {
 	return &Assessment{
 		Index:        AssessmentIndex,
 		AssessmentID: id,
-		EventSource:  eventSource,
 		Name:         name,
 		OrgID:        orgID,
 		Username:     username,
@@ -101,14 +99,12 @@ func NewAssessment(id, name, orgID, username, sourceType, status string, created
 }
 
 // NewAssessmentOS creates a new AssessmentOS entity
-func NewAssessmentOS(assessmentID, snapshotID, osType string, vmCount int, username, orgID, status string, createdAt time.Time, eventSource string) *AssessmentOS {
-	// Hash OS type to create a valid Elasticsearch document ID
+func NewAssessmentOS(assessmentID, snapshotID, osType string, vmCount int, username, orgID, status string, createdAt time.Time) *AssessmentOS {
 	hash := sha256.Sum256([]byte(osType))
 
 	return &AssessmentOS{
 		Index:        OSIndex,
-		ID:           fmt.Sprintf("%s_%s", snapshotID, hex.EncodeToString(hash[:8])), // Use first 8 bytes (16 hex chars)
-		EventSource:  eventSource,
+		ID:           fmt.Sprintf("%s_%s", snapshotID, hex.EncodeToString(hash[:8])),
 		AssessmentID: assessmentID,
 		SnapshotID:   snapshotID,
 		OSType:       osType,
@@ -121,11 +117,10 @@ func NewAssessmentOS(assessmentID, snapshotID, osType string, vmCount int, usern
 }
 
 // NewAssessmentDatastore creates a new AssessmentDatastore entity
-func NewAssessmentDatastore(assessmentID, snapshotID string, datastoreIndex int, datastoreType string, totalCapGB, freeCapGB int, username, orgID, status string, createdAt time.Time, eventSource string) *AssessmentDatastore {
+func NewAssessmentDatastore(assessmentID, snapshotID string, datastoreIndex int, datastoreType string, totalCapGB, freeCapGB int, username, orgID, status string, createdAt time.Time) *AssessmentDatastore {
 	return &AssessmentDatastore{
 		Index:           DatastoreIndex,
 		ID:              fmt.Sprintf("%s_%d", snapshotID, datastoreIndex),
-		EventSource:     eventSource,
 		AssessmentID:    assessmentID,
 		SnapshotID:      snapshotID,
 		DatastoreIndex:  datastoreIndex,
