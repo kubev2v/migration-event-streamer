@@ -271,7 +271,6 @@ func (e *ElasticSearch) ToOption() ElasticSearchOption {
 		to.Username = e.Username
 		to.Password = e.Password
 		to.Host = e.Host
-		to.IndexPrefix = e.IndexPrefix
 		to.Indexes = e.Indexes
 		to.SSLInsecureSkipVerify = e.SSLInsecureSkipVerify
 		to.ResponseTimeout = e.ResponseTimeout
@@ -291,11 +290,6 @@ func (e *ElasticSearch) DebugMap() map[string]any {
 		debugMap["Host"] = "(empty)"
 	} else {
 		debugMap["Host"] = e.Host
-	}
-	if e.IndexPrefix == "" {
-		debugMap["IndexPrefix"] = "(empty)"
-	} else {
-		debugMap["IndexPrefix"] = e.IndexPrefix
 	}
 	if e.Indexes == nil {
 		debugMap["Indexes"] = "nil"
@@ -371,13 +365,6 @@ func WithPassword(password string) ElasticSearchOption {
 func WithHost(host string) ElasticSearchOption {
 	return func(e *ElasticSearch) {
 		e.Host = host
-	}
-}
-
-// WithIndexPrefix returns an option that can set IndexPrefix on a ElasticSearch
-func WithIndexPrefix(indexPrefix string) ElasticSearchOption {
-	return func(e *ElasticSearch) {
-		e.IndexPrefix = indexPrefix
 	}
 }
 

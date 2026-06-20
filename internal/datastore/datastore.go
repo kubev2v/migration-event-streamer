@@ -86,7 +86,7 @@ func (d *Datastore) Build() error {
 	return nil
 }
 
-func (d *Datastore) ElasticRepository() *elastic.ElasticRepository {
+func (d *Datastore) ElasticRepository() elastic.Writer {
 	return d.elasticRepo
 }
 

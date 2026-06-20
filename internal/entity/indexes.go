@@ -7,5 +7,4 @@ const (
 	OSIndex              = "os"
 	PartnerCustomerIndex = "partner_customer"
 	UserActionIndex      = "user_action"
-	VisitorIndex         = "visitor"
 )

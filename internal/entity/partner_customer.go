@@ -5,7 +5,6 @@ import "time"
 // PartnerCustomer represents a partner-customer relationship document in Elasticsearch
 type PartnerCustomer struct {
 	ID               string  `json:"-"`
-	EventSource      string  `json:"event_source"`
 	CustomerUsername string  `json:"customer_username"`
 	PartnerID        string  `json:"partner_id"`
 	RequestStatus    string  `json:"request_status"`
@@ -16,10 +15,9 @@ type PartnerCustomer struct {
 }
 
 // NewPartnerCustomer creates a new PartnerCustomer entity
-func NewPartnerCustomer(id, customerUsername, partnerID, requestStatus string, acceptedAt, terminatedAt *time.Time, createdAt time.Time, eventSource string) *PartnerCustomer {
-	pc := &PartnerCustomer{
+func NewPartnerCustomer(id, customerUsername, partnerID, requestStatus string, acceptedAt, terminatedAt *time.Time, createdAt time.Time) PartnerCustomer {
+	pc := PartnerCustomer{
 		ID:               id,
-		EventSource:      eventSource,
 		CustomerUsername: customerUsername,
 		PartnerID:        partnerID,
 		RequestStatus:    requestStatus,

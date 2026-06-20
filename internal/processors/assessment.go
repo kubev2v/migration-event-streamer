@@ -6,53 +6,20 @@ import (
 	"fmt"
 	"time"
 
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
-	"github.com/kubev2v/migration-event-streamer/internal/pipeline"
 	"github.com/kubev2v/migration-planner/api/v1alpha1"
 	plannerEvents "github.com/kubev2v/migration-planner/pkg/events"
 	"go.uber.org/zap"
 )
 
-func AssessmentProcessor(_ context.Context, e cloudevents.Event) (entity.AssessmentResult, error) {
-	var payload plannerEvents.AssessmentEventPayload
-	if err := json.Unmarshal(e.Data(), &payload); err != nil {
-		zap.S().Errorw("failed to unmarshal assessment event", "error", err)
-		return entity.AssessmentResult{}, err
-	}
+func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.AssessmentEventPayload) (entity.AssessmentCreatedResult, error) {
+	assessment := event.Assessment
 
-	action := pipeline.ExtractAction(e.Context.GetType())
-	eventSource := e.Context.GetSource()
-
-	zap.S().Infow("processing assessment event",
-		"assessment_id", payload.Assessment.ID,
-		"action", action)
-
-	switch action {
-	case entity.AssessmentActionDeleted:
-		return buildDeleteResult(action, payload), nil
-	case entity.AssessmentActionCreated:
-		return buildCreateResult(action, payload, eventSource)
-	default:
-		zap.S().Infow("ignoring unknown action", "action", action)
-		return entity.AssessmentResult{Action: action}, nil
-	}
-}
-
-func buildDeleteResult(action string, payload plannerEvents.AssessmentEventPayload) entity.AssessmentResult {
-	return entity.AssessmentResult{
-		Action:    action,
-		DeletedID: payload.Assessment.ID,
-		DeletedAt: payload.Assessment.DeletedAt.Format(time.RFC3339),
-	}
-}
-
-func buildCreateResult(action string, payload plannerEvents.AssessmentEventPayload, eventSource string) (entity.AssessmentResult, error) {
-	assessment := payload.Assessment
-
+	zap.S().Infow("processing assessment created event",
+		"assessment_id", assessment.ID)
 	var inventory v1alpha1.Inventory
 	if err := json.Unmarshal(assessment.Inventory, &inventory); err != nil {
-		return entity.AssessmentResult{}, fmt.Errorf("failed to unmarshal inventory: %w", err)
+		return entity.AssessmentCreatedResult{}, fmt.Errorf("failed to unmarshal inventory: %w", err)
 	}
 
 	snapshotID := fmt.Sprintf("%d", assessment.SnapshotID)
@@ -66,7 +33,6 @@ func buildCreateResult(action string, payload plannerEvents.AssessmentEventPaylo
 		assessment.CreatedAt,
 		snapshotID,
 		inventory.VcenterId,
-		eventSource,
 	)
 	doc.PartnerID = assessment.PartnerID
 
@@ -81,15 +47,24 @@ func buildCreateResult(action string, payload plannerEvents.AssessmentEventPaylo
 		doc.TotalWithSharedDisks = inventory.Vcenter.Vms.TotalWithSharedDisks
 	}
 
-	return entity.AssessmentResult{
-		Action:     action,
-		Assessment: doc,
-		OSEntries:  buildOSEntries(assessment, inventory, eventSource),
-		Datastores: buildDatastoreEntries(assessment, inventory, eventSource),
+	return entity.AssessmentCreatedResult{
+		Assessment: *doc,
+		OSEntries:  buildOSEntries(assessment, inventory),
+		Datastores: buildDatastoreEntries(assessment, inventory),
 	}, nil
 }
 
-func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory, eventSource string) []*entity.AssessmentOS {
+func AssessmentDeletedProcessor(_ context.Context, event plannerEvents.AssessmentEventPayload) (entity.AssessmentDeletedResult, error) {
+	zap.S().Infow("processing assessment deleted event",
+		"assessment_id", event.Assessment.ID)
+
+	return entity.AssessmentDeletedResult{
+		DeletedID: event.Assessment.ID,
+		DeletedAt: event.Assessment.DeletedAt.Format(time.RFC3339),
+	}, nil
+}
+
+func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory) []entity.AssessmentOS {
 	osCounts := make(map[string]int)
 	if inventory.Vcenter != nil && inventory.Vcenter.Vms.OsInfo != nil {
 		for osType, info := range *inventory.Vcenter.Vms.OsInfo {
@@ -97,7 +72,7 @@ func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.
 		}
 	}
 
-	entries := make([]*entity.AssessmentOS, 0, len(osCounts))
+	entries := make([]entity.AssessmentOS, 0, len(osCounts))
 	for osType, count := range osCounts {
 		doc := entity.NewAssessmentOS(
 			assessment.ID,
@@ -108,19 +83,18 @@ func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.
 			assessment.OrgID,
 			entity.ActiveStatus,
 			assessment.CreatedAt,
-			eventSource,
 		)
 
 		doc.PartnerID = assessment.PartnerID
 
-		entries = append(entries, doc)
+		entries = append(entries, *doc)
 	}
 
 	return entries
 }
 
-func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory, eventSource string) []*entity.AssessmentDatastore {
-	var entries []*entity.AssessmentDatastore
+func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory) []entity.AssessmentDatastore {
+	var entries []entity.AssessmentDatastore
 	datastoreIndex := 0
 
 	for _, cluster := range inventory.Clusters {
@@ -136,12 +110,11 @@ func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1
 				assessment.OrgID,
 				entity.ActiveStatus,
 				assessment.CreatedAt,
-				eventSource,
 			)
 
 			doc.PartnerID = assessment.PartnerID
 
-			entries = append(entries, doc)
+			entries = append(entries, *doc)
 			datastoreIndex++
 		}
 	}

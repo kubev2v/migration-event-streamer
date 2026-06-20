@@ -2,84 +2,89 @@ package pipeline
 
 import (
 	"context"
-	"time"
+	"encoding/json"
 
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
-	"github.com/kubev2v/migration-event-streamer/internal/metrics"
 	"go.uber.org/zap"
 )
 
-type HandleFn func(context.Context, cloudevents.Event) error
-type Processor[T any] func(context.Context, cloudevents.Event) (T, error)
-type WriteFn[T any] func(context.Context, T) error
+type Processor[T any, S any] func(context.Context, T) (S, error)
+type WriteFn[S any] func(context.Context, S) error
 
-type Starter interface {
-	Start(context.Context)
+type Pipeline[T any, S any] struct {
+	name   string
+	handle func(context.Context, T) error
+	input  <-chan entity.PipelineJob
+	errors chan<- entity.PipelineError
 }
 
-type Pipeline[T any] struct {
-	name      string
-	processor Processor[T]
-	write     WriteFn[T]
-	handle    HandleFn
-	messages  chan entity.Message
-}
-
-func NewPipeline[T any](name string, messages chan entity.Message, processor Processor[T], write WriteFn[T]) *Pipeline[T] {
-	p := &Pipeline[T]{
-		name:      name,
-		processor: processor,
-		write:     write,
-		messages:  messages,
+func NewPipeline[T any, S any](name string, process Processor[T, S], write WriteFn[S], input <-chan entity.PipelineJob, errors chan<- entity.PipelineError) *Pipeline[T, S] {
+	p := &Pipeline[T, S]{
+		name:   name,
+		input:  input,
+		errors: errors,
 	}
-	p.handle = func(ctx context.Context, event cloudevents.Event) error {
-		result, err := p.processor(ctx, event)
+	p.handle = func(ctx context.Context, payload T) error {
+		r, err := process(ctx, payload)
 		if err != nil {
 			return err
 		}
-		return p.write(ctx, result)
+		return write(ctx, r)
 	}
 	return p
 }
 
-func (d *Pipeline[T]) WithRetry() *Pipeline[T] {
-	previous := d.handle
-	d.handle = func(ctx context.Context, event cloudevents.Event) error {
+func (p *Pipeline[T, S]) Start(ctx context.Context) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer func() {
+			close(done)
+			zap.S().Infow("pipeline stopped", "name", p.name)
+		}()
+		for {
+			select {
+			case job, ok := <-p.input:
+				if !ok {
+					return
+				}
+				var payload T
+				if err := json.Unmarshal(job.Data, &payload); err != nil {
+					p.sendError(err)
+					close(job.Done)
+					continue
+				}
+				if err := p.handle(ctx, payload); err != nil {
+					p.sendError(err)
+				}
+				close(job.Done)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return done
+}
+
+func (p *Pipeline[T, S]) sendError(err error) {
+	pe := entity.NewPipelineError(p.name, err)
+	p.errors <- pe
+	<-pe.Ack
+}
+
+func (p *Pipeline[T, S]) WithRetry() *Pipeline[T, S] {
+	previous := p.handle
+	p.handle = func(ctx context.Context, input T) error {
 		// TODO add retry function
-		return previous(ctx, event)
+		return previous(ctx, input)
 	}
-	return d
+	return p
 }
 
-func (d *Pipeline[T]) WithObservability() *Pipeline[T] {
-	previous := d.handle
-	d.handle = func(ctx context.Context, event cloudevents.Event) error {
-		startTimestamp := event.Context.GetTime()
-		metrics.IncreaseMessagesCount(event.Context.GetType())
-		err := previous(ctx, event)
-		if err != nil {
-			metrics.IncreaseErrorProcessingCount(event.Context.GetType())
-			return err
-		}
-		metrics.IncreaseProcessedMessagesCount(event.Context.GetType())
-		metrics.UpdateProcessingMetric(event.Context.GetType(), time.Since(startTimestamp))
-		return nil
+func (p *Pipeline[T, S]) WithObservability() *Pipeline[T, S] {
+	previous := p.handle
+	p.handle = func(ctx context.Context, input T) error {
+		// TODO add observability function
+		return previous(ctx, input)
 	}
-	return d
-}
-
-func (d *Pipeline[T]) Start(ctx context.Context) {
-	zap.S().Infof("%s pipeline started", d.name)
-	defer func() { zap.S().Infof("%s pipeline closed", d.name) }()
-
-	for msg := range d.messages {
-		if err := d.handle(ctx, msg.Event); err != nil {
-			zap.S().Warnw("failed to process message", "message", msg, "error", err)
-		}
-
-		close(msg.CommitCh)
-
-		zap.S().Infow("message consumed", "pipeline", d.name, "id", msg.Event.Context.GetID(), "type", msg.Event.Context.GetType())
-	}
+	return p
 }
