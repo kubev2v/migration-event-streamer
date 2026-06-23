@@ -10,6 +10,9 @@ const namespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 const DefaultNamespace = "assisted-migration-local"
 
 var Namespace = sync.OnceValue(func() string {
+	if env := os.Getenv("STREAMER_NAMESPACE"); env != "" {
+		return env
+	}
 	if ns, err := os.ReadFile(namespacePath); err == nil && len(ns) > 0 {
 		return strings.TrimSpace(string(ns))
 	}
