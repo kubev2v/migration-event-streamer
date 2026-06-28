@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	elastic "github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -57,14 +58,6 @@ func (e *ElasticRepository) CreateIndex(name string) error {
 	return nil
 }
 
-func (e *ElasticRepository) WriteVisitor(ctx context.Context, v *entity.Visitor) error {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return fmt.Errorf("failed to marshal visitor: %w", err)
-	}
-	return e.write(ctx, v.Index, v.ID, data)
-}
-
 func (e *ElasticRepository) WritePartnerCustomer(ctx context.Context, pc *entity.PartnerCustomer) error {
 	data, err := json.Marshal(pc)
 	if err != nil {
@@ -78,6 +71,15 @@ func (e *ElasticRepository) WriteUserAction(ctx context.Context, ua *entity.User
 		if err := e.updateAssessmentPartner(ctx, *ua.AssessmentID, ua.PartnerID, ua.ActionType); err != nil {
 			return fmt.Errorf("failed to handle %s action: %w", ua.ActionType, err)
 		}
+	}
+
+	if ua.ActionType == entity.UserActionVisited {
+		t, err := time.Parse(time.RFC3339, ua.Timestamp)
+		if err != nil {
+			return err
+		}
+
+		ua.ID = *ua.OrgID + "_" + ua.Username + "_" + t.Format("20060102")
 	}
 
 	data, err := json.Marshal(ua)

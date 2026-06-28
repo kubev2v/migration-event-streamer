@@ -27,7 +27,7 @@ func UserActionProcessor(_ context.Context, e cloudevents.Event) (*entity.UserAc
 		return nil, fmt.Errorf("failed to marshal action data: %w", err)
 	}
 
-	var assessmentID, sourceID, partnerID *string
+	var assessmentID, sourceID, partnerID, orgID *string
 
 	switch actionType {
 	case entity.UserActionShareAssessment:
@@ -66,6 +66,13 @@ func UserActionProcessor(_ context.Context, e cloudevents.Event) (*entity.UserAc
 		}
 		sourceID = &data.SourceID
 
+	case entity.UserActionVisited:
+		var data plannerEvents.VisitorActionData
+		if err := json.Unmarshal(dataBytes, &data); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal visitor data: %w", err)
+		}
+		orgID = &data.OrgID
+
 	default:
 		return nil, fmt.Errorf("unknown user_action type: %s", actionType)
 	}
@@ -79,6 +86,7 @@ func UserActionProcessor(_ context.Context, e cloudevents.Event) (*entity.UserAc
 		assessmentID,
 		sourceID,
 		partnerID,
+		orgID,
 		actionType,
 		action.Timestamp,
 		e.Context.GetSource(),

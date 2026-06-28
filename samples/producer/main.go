@@ -17,7 +17,7 @@ import (
 
 const (
 	assessmentCreatedEventType = "assisted.migration.assessment.created"
-	visitorEventType           = "assisted.migration.visitor.visited"
+	visitorEventType           = "assisted.migration.user_action.visited"
 	partnerCustomerEventType   = "assisted.migration.partner_customer.updated"
 	userActionEventType        = "assisted.migration.user_action.assessment_shared"
 	inputTopic                 = "assisted.migration.events"
@@ -67,7 +67,7 @@ func main() {
 	defer producer.Close()
 
 	for {
-		who := rand.Intn(4) + 1
+		who := rand.Intn(3) + 1
 		e := cloudevents.NewEvent()
 		e.SetID(uuid.New().String())
 		e.SetSource(eventSource)
@@ -90,16 +90,6 @@ func main() {
 			}
 			_ = e.SetData(cloudevents.ApplicationJSON, payload)
 		case 2:
-			e.SetType(visitorEventType)
-			payload := map[string]any{
-				"visitor": map[string]any{
-					"username":  "testuser",
-					"org_id":    "test-org",
-					"timestamp": now,
-				},
-			}
-			_ = e.SetData(cloudevents.ApplicationJSON, payload)
-		case 3:
 			e.SetType(partnerCustomerEventType)
 			payload := map[string]any{
 				"partner_customer": map[string]any{
@@ -112,7 +102,7 @@ func main() {
 				},
 			}
 			_ = e.SetData(cloudevents.ApplicationJSON, payload)
-		case 4:
+		case 3:
 			e.SetType(userActionEventType)
 			payload := map[string]any{
 				"user_action": map[string]any{

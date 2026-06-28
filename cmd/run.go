@@ -27,7 +27,6 @@ import (
 
 var (
 	AssessmentPipeline      = "assessment"
-	VisitorPipeline         = "visitor"
 	PartnerCustomerPipeline = "partner_customer"
 	UserActionPipeline      = "user_action"
 )
@@ -204,8 +203,6 @@ func createPipelines(ctx context.Context, pipelines []pipelineDef, routes map[st
 		switch p.Type {
 		case AssessmentPipeline:
 			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.AssessmentProcessor, dt.ElasticRepository().WriteAssessment)
-		case VisitorPipeline:
-			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.VisitorProcessor, dt.ElasticRepository().WriteVisitor)
 		case PartnerCustomerPipeline:
 			pipeline.AddPipeline(m, ctx, p.Name, dt.MustHaveConsumer(p.InputTopic), processors.PartnerCustomerProcessor, dt.ElasticRepository().WritePartnerCustomer)
 		case UserActionPipeline:

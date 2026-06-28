@@ -12,4 +12,5 @@ const (
 	UserActionSizingRequested     = "sizing_requested"
 	UserActionComplexityEstimated = "complexity_estimated"
 	UserActionOVADownloaded       = "ova_downloaded"
+	UserActionVisited             = "visited"
 )

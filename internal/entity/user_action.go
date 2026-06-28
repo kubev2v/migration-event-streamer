@@ -14,12 +14,13 @@ type UserAction struct {
 	AssessmentID *string `json:"assessment_id,omitempty"`
 	SourceID     *string `json:"source_id,omitempty"`
 	PartnerID    *string `json:"partner_id,omitempty"`
+	OrgID        *string `json:"org_id,omitempty"`
 	ActionType   string  `json:"action_type"`
 	Timestamp    string  `json:"timestamp"`
 }
 
 // NewUserAction creates a new UserAction entity with auto-generated ID
-func NewUserAction(username string, assessmentID, sourceID, partnerID *string, actionType string, timestamp time.Time, eventSource string) *UserAction {
+func NewUserAction(username string, assessmentID, sourceID, partnerID, orgID *string, actionType string, timestamp time.Time, eventSource string) *UserAction {
 	return &UserAction{
 		ID:           uuid.New().String(),
 		EventSource:  eventSource,
@@ -27,6 +28,7 @@ func NewUserAction(username string, assessmentID, sourceID, partnerID *string, a
 		AssessmentID: assessmentID,
 		SourceID:     sourceID,
 		PartnerID:    partnerID,
+		OrgID:        orgID,
 		ActionType:   actionType,
 		Timestamp:    timestamp.Format(time.RFC3339),
 	}

@@ -10,7 +10,7 @@ require (
 	github.com/go-extras/cobraflags v0.0.0-20260116100222-f76efc9500d4
 	github.com/google/uuid v1.6.0
 	github.com/jzelinskie/cobrautil/v2 v2.0.0-20260331224425-513c88b62ffe
-	github.com/kubev2v/migration-planner v0.13.7-0.20260616073730-4daa5ba5e7ef
+	github.com/kubev2v/migration-planner v0.15.1-0.20260628115732-e93ae6f457af
 	github.com/prometheus/client_golang v1.23.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
