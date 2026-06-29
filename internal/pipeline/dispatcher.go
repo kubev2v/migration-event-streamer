@@ -20,6 +20,7 @@ const (
 	UserActionUnshared        = "user_action.assessment_unshared"
 	UserActionSizingRequested = "user_action.sizing_requested"
 	UserActionComplexity      = "user_action.complexity_estimated"
+	UserActionTimeEstimated   = "user_action.time_estimated"
 	UserActionOVADownloaded   = "user_action.ova_downloaded"
 	UserActionVisited         = "user_action.visited"
 )
@@ -170,6 +171,15 @@ func (d *Dispatcher) WithComplexityEstimatedPipeline(w elastic.Writer) *Dispatch
 	return d
 }
 
+func (d *Dispatcher) WithTimeEstimatedPipeline(w elastic.Writer) *Dispatcher {
+	input := make(chan any)
+	d.pipelines[UserActionTimeEstimated] = &pipelineEntry{
+		input:    input,
+		pipeline: NewPipeline(UserActionTimeEstimated, processors.TimeEstimatedProcessor, w.UserAction().WriteTimeEstimated, input, d.errors).WithRetry().WithObservability(),
+	}
+	return d
+}
+
 func (d *Dispatcher) WithOVADownloadedPipeline(w elastic.Writer) *Dispatcher {
 	input := make(chan any)
 	d.pipelines[UserActionOVADownloaded] = &pipelineEntry{
@@ -193,7 +203,7 @@ func unmarshalEvent(key string, data []byte) (any, error) {
 			return nil, err
 		}
 		return entity.Event[plannerEvents.PartnerCustomerEventPayload]{Payload: payload}, nil
-	case UserActionShared, UserActionUnshared, UserActionSizingRequested, UserActionComplexity, UserActionOVADownloaded, UserActionVisited:
+	case UserActionShared, UserActionUnshared, UserActionSizingRequested, UserActionComplexity, UserActionTimeEstimated, UserActionOVADownloaded, UserActionVisited:
 		var payload plannerEvents.UserActionEventPayload
 		if err := json.Unmarshal(data, &payload); err != nil {
 			return nil, err

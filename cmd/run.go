@@ -158,6 +158,8 @@ func createAndStartPipelines(ctx context.Context, pipelineFlags []string, router
 			m.WithSizingRequestedPipeline(repo)
 		case pipeline.UserActionComplexity:
 			m.WithComplexityEstimatedPipeline(repo)
+		case pipeline.UserActionTimeEstimated:
+			m.WithTimeEstimatedPipeline(repo)
 		case pipeline.UserActionOVADownloaded:
 			m.WithOVADownloadedPipeline(repo)
 		default:

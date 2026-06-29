@@ -97,6 +97,11 @@ func (m *Manager) WithComplexityEstimatedPipeline(w elastic.Writer) *Manager {
 	return m
 }
 
+func (m *Manager) WithTimeEstimatedPipeline(w elastic.Writer) *Manager {
+	m.dispatcher.WithTimeEstimatedPipeline(w)
+	return m
+}
+
 func (m *Manager) WithOVADownloadedPipeline(w elastic.Writer) *Manager {
 	m.dispatcher.WithOVADownloadedPipeline(w)
 	return m

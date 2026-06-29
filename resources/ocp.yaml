@@ -44,6 +44,7 @@ objects:
           - user_action.assessment_unshared
           - user_action.sizing_requested
           - user_action.complexity_estimated
+          - user_action.time_estimated
           - user_action.ova_downloaded
         router:
           inputTopic: assisted.migrations.events
