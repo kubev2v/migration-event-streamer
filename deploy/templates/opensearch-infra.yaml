@@ -1,0 +1,140 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: assisted-opensearch
+parameters:
+- name: ES_URI_SECRET_NAME
+  value: assisted-migration-elasticsearch
+- name: ES_URI_SECRET_KEY
+  value: endpoint
+- name: OAUTH_IMAGE
+  value: registry.redhat.io/openshift4/ose-oauth-proxy-rhel9
+- name: OAUTH_IMAGE_TAG
+  value: v4.18.0-202506230505.p0.gcbd44ad.assembly.stream.el9
+- name: HAPROXY_IMAGE
+  value: registry.redhat.io/rhui5/haproxy-rhel9
+- name: HAPROXY_IMAGE_TAG
+  value: 5.1-1779798128
+objects:
+# Kibana manifests
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: kibana-proxy
+    name: kibana-proxy
+  spec:
+    ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: 3000
+    selector:
+      app: kibana
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: kibana
+    labels:
+      app: kibana
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: kibana
+    template:
+      metadata:
+        labels:
+          app: kibana
+      spec:
+        serviceAccountName: kibana-proxy
+        containers:
+        - name: kibana-proxy
+          image: ${OAUTH_IMAGE}:${OAUTH_IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 3000
+            name: http
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /oauth/healthz
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: 50m
+              memory: 100Mi
+            requests:
+              cpu: 50m
+              memory: 100Mi
+          args:
+          - --http-address=0.0.0.0:3000
+          - --provider=openshift
+          - --openshift-service-account=kibana-proxy
+          - --upstream=http://localhost:8181
+          - --https-address=
+          - --pass-basic-auth=false
+          - --openshift-sar={"namespace":"$(NAMESPACE)","resource":"configmaps","name":"kibana-access","verb":"get"}
+          - '--openshift-delegate-urls={"/": {"namespace":"$(NAMESPACE)","resource":"configmaps","name":"kibana-access","verb":"get"}}'
+          - --client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+          env:
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: OAUTH2_PROXY_COOKIE_SECRET
+            valueFrom:
+              secretKeyRef:
+                key: session_secret
+                name: kibana-oauth-application
+        - image: ${HAPROXY_IMAGE}:${HAPROXY_IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
+          name: haproxy
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              host="${ENDPOINT#https://}"
+              host="${host#http://}"
+              host="${host%%/*}"
+              host="${host%%:*}"
+
+              cat << EOF > /tmp/haproxy.cfg
+              frontend http_in
+                  bind *:8181
+                  mode http
+
+                  http-request del-header Authorization
+                  http-request set-header Authorization %[hdr(X-OpenSearch-Auth)] if { hdr(X-OpenSearch-Auth) -m found }
+                  http-request del-header X-OpenSearch-Auth
+
+                  default_backend opensearch_aws
+
+              backend opensearch_aws
+                  mode http
+                  server aws_os ${host}:443 ssl sni str(${host}) verify required ca-file /etc/ssl/certs/ca-bundle.crt verifyhost ${host}
+              EOF
+
+              haproxy -f /tmp/haproxy.cfg
+          env:
+          - name: ENDPOINT
+            valueFrom:
+              secretKeyRef:
+                key: ${ES_URI_SECRET_KEY}
+                name: ${ES_URI_SECRET_NAME}
+          ports:
+          - containerPort: 8181
+            name: hahttp
+            protocol: TCP
+          resources:
+            limits:
+              cpu: 50m
+              memory: 100Mi
+            requests:
+              cpu: 50m
+              memory: 100Mi
