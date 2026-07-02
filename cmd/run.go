@@ -99,6 +99,10 @@ func registerFlags(cmd *cobra.Command, cfg *config.Configuration, routerInputTop
 func registerKafkaFlags(flagSet *pflag.FlagSet, cfg *config.Configuration) {
 	flagSet.StringSliceVar(&cfg.Kafka.Brokers, "kafka-brokers", cfg.Kafka.Brokers, "Kafka broker addresses")
 	flagSet.StringVar(&cfg.Kafka.ClientID, "kafka-client-id", cfg.Kafka.ClientID, "Kafka client ID")
+	flagSet.BoolVar(&cfg.Kafka.TLS, "kafka-tls", cfg.Kafka.TLS, "Enable TLS for Kafka connections")
+	flagSet.BoolVar(&cfg.Kafka.SASLEnabled, "kafka-sasl-enabled", cfg.Kafka.SASLEnabled, "Enable SASL authentication for Kafka")
+	flagSet.StringVar(&cfg.Kafka.SASLUsername, "kafka-sasl-username", cfg.Kafka.SASLUsername, "SASL username for Kafka authentication")
+	flagSet.StringVar(&cfg.Kafka.SASLPassword, "kafka-sasl-password", cfg.Kafka.SASLPassword, "SASL password for Kafka authentication")
 }
 
 func registerElasticFlags(flagSet *pflag.FlagSet, cfg *config.Configuration, indexes *[]string) {

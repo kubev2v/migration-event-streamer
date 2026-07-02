@@ -1,0 +1,119 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: migration-event-streamer
+parameters:
+  - name: IMAGE_NAME
+    value: quay.io/redhat-services-prod/assisted-migration-tenant/assisted-migration/migration-event-streamer
+  - name: IMAGE_TAG
+    value: latest
+  - name: REPLICAS
+    value: "1"
+  - name: MSK_SECRET_NAME
+    value: assisted-migration-msk
+  - name: MSK_CREDENTIALS_SECRET_NAME
+    required: true
+  - name: ES_SECRET_NAME
+    value: assisted-migration-elasticsearch
+  - name: ES_CREDENTIALS_SECRET_NAME
+    required: true
+  - name: STREAMER_LOG_LEVEL
+    value: info
+  - name: STREAMER_LOG_FORMAT
+    value: json
+  - name: STREAMER_METRICS_PORT
+    value: "8080"
+  - name: STREAMER_KAFKA_TLS
+    value: "true"
+  - name: STREAMER_KAFKA_SASL_ENABLED
+    value: "true"
+  - name: STREAMER_ROUTER_INPUT_TOPIC
+    required: true
+    description: "Shared input topic for the router consumer"
+  - name: STREAMER_ELASTIC_INDEXES
+    required: true
+    description: "Elasticsearch indexes to create (comma-separated)"
+
+objects:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: migration-event-streamer
+    spec:
+      selector:
+        matchLabels:
+          app: migration-event-streamer
+      replicas: ${{REPLICAS}}
+      template:
+        metadata:
+          labels:
+            app: migration-event-streamer
+        spec:
+          containers:
+            - name: migration-event-streamer
+              image: ${IMAGE_NAME}:${IMAGE_TAG}
+              imagePullPolicy: Always
+              command: ["/app/streamer"]
+              args: ["run"]
+              ports:
+                - name: metrics
+                  containerPort: ${{STREAMER_METRICS_PORT}}
+                  protocol: TCP
+              env:
+                - name: STREAMER_KAFKA_BROKERS
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${MSK_SECRET_NAME}
+                      key: bootstrap_brokers_sasl_scram
+                - name: STREAMER_KAFKA_CLIENT_ID
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: STREAMER_KAFKA_TLS
+                  value: ${STREAMER_KAFKA_TLS}
+                - name: STREAMER_KAFKA_SASL_ENABLED
+                  value: ${STREAMER_KAFKA_SASL_ENABLED}
+                - name: STREAMER_KAFKA_SASL_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+                      key: username
+                - name: STREAMER_KAFKA_SASL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+                      key: password
+                - name: STREAMER_ELASTIC_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${ES_SECRET_NAME}
+                      key: endpoint
+                - name: STREAMER_ELASTIC_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${ES_CREDENTIALS_SECRET_NAME}
+                      key: master_user_name
+                - name: STREAMER_ELASTIC_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${ES_CREDENTIALS_SECRET_NAME}
+                      key: master_user_password
+                - name: STREAMER_ELASTIC_SSL_INSECURE
+                  value: "false"
+                - name: STREAMER_ELASTIC_INDEXES
+                  value: ${STREAMER_ELASTIC_INDEXES}
+                - name: STREAMER_ROUTER_INPUT_TOPIC
+                  value: ${STREAMER_ROUTER_INPUT_TOPIC}
+                - name: STREAMER_LOG_FORMAT
+                  value: ${STREAMER_LOG_FORMAT}
+                - name: STREAMER_LOG_LEVEL
+                  value: ${STREAMER_LOG_LEVEL}
+                - name: STREAMER_METRICS_PORT
+                  value: ${STREAMER_METRICS_PORT}
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi

@@ -167,6 +167,10 @@ func (k *Kafka) ToOption() KafkaOption {
 	return func(to *Kafka) {
 		to.Brokers = k.Brokers
 		to.ClientID = k.ClientID
+		to.TLS = k.TLS
+		to.SASLEnabled = k.SASLEnabled
+		to.SASLUsername = k.SASLUsername
+		to.SASLPassword = k.SASLPassword
 	}
 }
 
@@ -183,6 +187,8 @@ func (k *Kafka) DebugMap() map[string]any {
 	} else {
 		debugMap["ClientID"] = k.ClientID
 	}
+	debugMap["TLS"] = k.TLS
+	debugMap["SASLEnabled"] = k.SASLEnabled
 	return debugMap
 }
 
@@ -241,6 +247,34 @@ func SetBrokers(brokers []string) KafkaOption {
 func WithClientID(clientID string) KafkaOption {
 	return func(k *Kafka) {
 		k.ClientID = clientID
+	}
+}
+
+// WithTLS returns an option that can set TLS on a Kafka
+func WithTLS(tLS bool) KafkaOption {
+	return func(k *Kafka) {
+		k.TLS = tLS
+	}
+}
+
+// WithSASLEnabled returns an option that can set SASLEnabled on a Kafka
+func WithSASLEnabled(sASLEnabled bool) KafkaOption {
+	return func(k *Kafka) {
+		k.SASLEnabled = sASLEnabled
+	}
+}
+
+// WithSASLUsername returns an option that can set SASLUsername on a Kafka
+func WithSASLUsername(sASLUsername string) KafkaOption {
+	return func(k *Kafka) {
+		k.SASLUsername = sASLUsername
+	}
+}
+
+// WithSASLPassword returns an option that can set SASLPassword on a Kafka
+func WithSASLPassword(sASLPassword string) KafkaOption {
+	return func(k *Kafka) {
+		k.SASLPassword = sASLPassword
 	}
 }
 
