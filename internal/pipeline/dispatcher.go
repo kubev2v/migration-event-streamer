@@ -17,6 +17,7 @@ const (
 	UserActionUnshared        = "user_action.assessment_unshared"
 	UserActionSizingRequested = "user_action.sizing_requested"
 	UserActionComplexity      = "user_action.complexity_estimated"
+	UserActionTimeEstimated   = "user_action.time_estimated"
 	UserActionOVADownloaded   = "user_action.ova_downloaded"
 	UserActionVisited         = "user_action.visited"
 )
@@ -99,6 +100,7 @@ func (d *Dispatcher) InitAllPipelines(w elastic.Writer) {
 	registerPipeline(d, UserActionUnshared, processors.UnshareAssessmentProcessor, w.UserAction().WriteUnshareAssessment)
 	registerPipeline(d, UserActionSizingRequested, processors.SizingRequestedProcessor, w.UserAction().WriteSizingRequested)
 	registerPipeline(d, UserActionComplexity, processors.ComplexityEstimatedProcessor, w.UserAction().WriteComplexityEstimated)
+	registerPipeline(d, UserActionTimeEstimated, processors.TimeEstimatedProcessor, w.UserAction().WriteTimeEstimated)
 	registerPipeline(d, UserActionOVADownloaded, processors.OVADownloadedProcessor, w.UserAction().WriteOVADownloaded)
 }
 

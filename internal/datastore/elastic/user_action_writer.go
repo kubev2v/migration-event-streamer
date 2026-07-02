@@ -79,6 +79,14 @@ func (w *userActionWriter) WriteComplexityEstimated(ctx context.Context, result 
 	return w.writeAction(ctx, result.ID, data)
 }
 
+func (w *userActionWriter) WriteTimeEstimated(ctx context.Context, result entity.TimeEstimatedResult) error {
+	data, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("failed to marshal time estimated: %w", err)
+	}
+	return w.writeAction(ctx, result.ID, data)
+}
+
 func (w *userActionWriter) WriteOVADownloaded(ctx context.Context, result entity.OVADownloadedResult) error {
 	data, err := json.Marshal(result)
 	if err != nil {

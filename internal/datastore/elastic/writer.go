@@ -30,6 +30,7 @@ type UserActionWriter interface {
 	WriteUnshareAssessment(ctx context.Context, result entity.UnshareAssessmentResult) error
 	WriteSizingRequested(ctx context.Context, result entity.SizingRequestedResult) error
 	WriteComplexityEstimated(ctx context.Context, result entity.ComplexityEstimatedResult) error
+	WriteTimeEstimated(ctx context.Context, result entity.TimeEstimatedResult) error
 	WriteOVADownloaded(ctx context.Context, result entity.OVADownloadedResult) error
 	WriteVisited(ctx context.Context, result entity.VisitedResult) error
 }
