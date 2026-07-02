@@ -95,6 +95,27 @@ func ComplexityEstimatedProcessor(_ context.Context, event plannerEvents.UserAct
 	), nil
 }
 
+func TimeEstimatedProcessor(_ context.Context, event plannerEvents.UserActionEventPayload) (entity.TimeEstimatedResult, error) {
+	action := event.UserAction
+	dataBytes, err := json.Marshal(action.Data)
+	if err != nil {
+		return entity.TimeEstimatedResult{}, fmt.Errorf("failed to marshal action data: %w", err)
+	}
+
+	var data plannerEvents.TimeEstimationActionData
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return entity.TimeEstimatedResult{}, fmt.Errorf("failed to unmarshal time estimation data: %w", err)
+	}
+
+	zap.S().Infow("processing time estimation event")
+
+	return entity.NewTimeEstimatedResult(
+		action.Username,
+		data.AssessmentID,
+		action.Timestamp,
+	), nil
+}
+
 func OVADownloadedProcessor(_ context.Context, event plannerEvents.UserActionEventPayload) (entity.OVADownloadedResult, error) {
 	action := event.UserAction
 	dataBytes, err := json.Marshal(action.Data)

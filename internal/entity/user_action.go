@@ -35,6 +35,13 @@ type ComplexityEstimatedResult struct {
 	Timestamp    string `json:"timestamp"`
 }
 
+type TimeEstimatedResult struct {
+	ID           string `json:"-"`
+	Username     string `json:"username"`
+	AssessmentID string `json:"assessment_id"`
+	Timestamp    string `json:"timestamp"`
+}
+
 type OVADownloadedResult struct {
 	ID        string `json:"-"`
 	Username  string `json:"username"`
@@ -79,6 +86,15 @@ func NewSizingRequestedResult(username, assessmentID string, timestamp time.Time
 
 func NewComplexityEstimatedResult(username, assessmentID string, timestamp time.Time) ComplexityEstimatedResult {
 	return ComplexityEstimatedResult{
+		ID:           uuid.New().String(),
+		Username:     username,
+		AssessmentID: assessmentID,
+		Timestamp:    timestamp.Format(time.RFC3339),
+	}
+}
+
+func NewTimeEstimatedResult(username, assessmentID string, timestamp time.Time) TimeEstimatedResult {
+	return TimeEstimatedResult{
 		ID:           uuid.New().String(),
 		Username:     username,
 		AssessmentID: assessmentID,
