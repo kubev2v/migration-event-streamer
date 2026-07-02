@@ -13,8 +13,12 @@ type Configuration struct {
 }
 
 type Kafka struct {
-	Brokers  []string `debugmap:"visible"`
-	ClientID string   `debugmap:"visible"`
+	Brokers      []string `debugmap:"visible"`
+	ClientID     string   `debugmap:"visible"`
+	TLS          bool     `debugmap:"visible" default:"false"`
+	SASLEnabled  bool     `debugmap:"visible" default:"false"`
+	SASLUsername string   `debugmap:"hidden"`
+	SASLPassword string   `debugmap:"hidden"`
 }
 
 type ElasticSearch struct {
