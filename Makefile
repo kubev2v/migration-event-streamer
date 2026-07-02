@@ -100,4 +100,21 @@ lint: check-golangci-lint-version $(GOLANGCI_LINT)
 	@echo "✅ Lint passed successfully!"
 ##################### "make lint" support end   ##########################
 
-.PHONY: vendor build run tidy tidy-check format check-format lint check-golangci-lint-version
+PLANNER_IMAGE ?= migration-planner-api:e2e
+STREAMER_IMAGE ?= migration-event-streamer:e2e
+PODMAN_SOCKET ?= unix:///run/user/1000/podman/podman.sock
+
+build.e2e:
+	go test -c -tags "exclude_graphdriver_btrfs containers_image_openpgp" -o bin/e2e ./test/e2e
+
+e2e: build.e2e
+	./bin/e2e \
+		-planner-image=$(PLANNER_IMAGE) \
+		-streamer-image=$(STREAMER_IMAGE) \
+		-podman-socket=$(PODMAN_SOCKET) \
+		--ginkgo.v
+
+e2e.clean:
+	-podman rm -f e2e-streamer-test-postgres e2e-streamer-test-kafka e2e-streamer-test-elasticsearch e2e-streamer-test-planner e2e-streamer-test-streamer 2>/dev/null
+
+.PHONY: vendor build run tidy tidy-check format check-format lint check-golangci-lint-version build.e2e e2e e2e.clean

@@ -1,0 +1,11 @@
+version: "2"
+
+run:
+  build-tags:
+    - exclude_graphdriver_btrfs
+    - containers_image_openpgp
+
+linters:
+  exclusions:
+    paths:
+      - test/e2e
