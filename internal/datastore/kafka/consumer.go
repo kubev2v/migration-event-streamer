@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/sasl/scram"
 	"github.com/twmb/franz-go/plugin/kprom"
 	"go.uber.org/zap"
 )
@@ -30,7 +32,7 @@ func NewConsumer(cfg config.Kafka, topic, consumerGroupID string) (*Consumer, er
 		clientID = hostname
 	}
 
-	cl, err := kgo.NewClient(
+	opts := []kgo.Opt{
 		kgo.AutoCommitMarks(),
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.ClientID(clientID),
@@ -39,7 +41,18 @@ func NewConsumer(cfg config.Kafka, topic, consumerGroupID string) (*Consumer, er
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 		kgo.BlockRebalanceOnPoll(),
 		kgo.WithHooks(kprom.NewMetrics("kafka_consumer")),
-	)
+	}
+
+	if cfg.TLS {
+		opts = append(opts, kgo.DialTLSConfig(&tls.Config{MinVersion: tls.VersionTLS12}))
+	}
+
+	if cfg.SASLEnabled {
+		auth := scram.Auth{User: cfg.SASLUsername, Pass: cfg.SASLPassword}
+		opts = append(opts, kgo.SASL(auth.AsSha512Mechanism()))
+	}
+
+	cl, err := kgo.NewClient(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kafka consumer: %w", err)
 	}
