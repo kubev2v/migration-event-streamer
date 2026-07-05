@@ -24,6 +24,87 @@ func NewPlannerService(baseURL string) *PlannerService {
 	}
 }
 
+func (s *PlannerService) DeleteAssessment(id string) error {
+	zap.S().Infof("Deleting assessment %s...", id)
+
+	resp, err := s.doRequest(http.MethodDelete, fmt.Sprintf("/api/v1/assessments/%s", id), nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete assessment failed: status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	zap.S().Infof("Assessment deleted: %s", id)
+	return nil
+}
+
+func (s *PlannerService) ListAssessments() error {
+	zap.S().Info("Listing assessments...")
+
+	resp, err := s.doRequest(http.MethodGet, "/api/v1/assessments", nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("list assessments failed: status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func (s *PlannerService) CalculateComplexity(id string, clusterID string) error {
+	zap.S().Infof("Calculating complexity for assessment %s, cluster %s...", id, clusterID)
+
+	body := map[string]any{"clusterId": clusterID}
+	reqBody, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := s.doRequest(http.MethodPost, fmt.Sprintf("/api/v1/assessments/%s/complexity-estimation", id), reqBody)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("calculate complexity failed: status %d, body: %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}
+
+func (s *PlannerService) CalculateTimeEstimation(id string, clusterID string) error {
+	zap.S().Infof("Calculating time estimation for assessment %s, cluster %s...", id, clusterID)
+
+	body := map[string]any{"clusterId": clusterID}
+	reqBody, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := s.doRequest(http.MethodPost, fmt.Sprintf("/api/v1/assessments/%s/migration-estimation", id), reqBody)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("calculate time estimation failed: status %d, body: %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}
+
 func (s *PlannerService) CreateAssessment(name, sourceType string, sourceID *uuid.UUID, inventory *v1alpha1.Inventory) (*v1alpha1.Assessment, error) {
 	zap.S().Infof("Creating assessment %q...", name)
 

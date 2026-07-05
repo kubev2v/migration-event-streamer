@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/kubev2v/migration-event-streamer/test/e2e/service"
 	"testing"
 
 	"github.com/kubev2v/migration-event-streamer/test/e2e/infra"
+	"github.com/kubev2v/migration-event-streamer/test/e2e/service"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/zap"
