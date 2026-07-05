@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"sync"
 
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
@@ -17,6 +18,7 @@ type Manager struct {
 	dispatcher   *Dispatcher
 	errorHandler ErrorHandler
 	errorCh      chan entity.PipelineError
+	wg           sync.WaitGroup
 }
 
 func NewManager(ctx context.Context, routerConsumer, dispatcherConsumer Consumer, writer RouteWriter) (*Manager, error) {
@@ -46,15 +48,19 @@ func NewManager(ctx context.Context, routerConsumer, dispatcherConsumer Consumer
 	return m, nil
 }
 
-func (m *Manager) Start(ctx context.Context) {
-	m.errorHandler.Start(ctx)
-	m.router.Start(ctx)
-	m.dispatcher.Start(ctx)
+func (m *Manager) Start(ctx context.Context, cancel context.CancelFunc) {
+	errorsDone := m.errorHandler.Start(ctx)
+	routerDone := m.router.Start(ctx)
+	dispatcherDone := m.dispatcher.Start(ctx)
 
-	go func() {
-		<-m.dispatcher.Done()
-		close(m.errorCh)
-	}()
+	m.wg.Add(3)
+	go func() { <-routerDone; cancel(); m.wg.Done() }()
+	go func() { <-dispatcherDone; close(m.errorCh); cancel(); m.wg.Done() }()
+	go func() { <-errorsDone; cancel(); m.wg.Done() }()
+}
+
+func (m *Manager) Wait() {
+	m.wg.Wait()
 }
 
 func (m *Manager) InitAllPipelines(w elastic.Writer) {

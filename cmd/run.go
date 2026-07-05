@@ -61,11 +61,25 @@ func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGQUIT)
 			defer cancel()
 
-			if err := createAndStartPipelines(ctx, routerInputTopic, envTopic, dt); err != nil {
+			routerConsumer := dt.MustHaveConsumer("router")
+			dispatcherConsumer := dt.MustHaveConsumer("dispatcher")
+			producer := dt.MustHaveProducer("producer")
+
+			m, err := pipeline.NewManager(ctx, routerConsumer, dispatcherConsumer, producer)
+			if err != nil {
 				return err
 			}
 
+			m.InitAllPipelines(dt.ElasticRepository())
+			m.Start(ctx, cancel)
+
+			zap.S().Infow("pipelines started",
+				"router_input_topic", routerInputTopic,
+				"env_topic", envTopic,
+			)
+
 			<-ctx.Done()
+			m.Wait()
 
 			return nil
 		},
@@ -127,26 +141,4 @@ func createDatastore(cfg *config.Configuration, routerInputTopic, envTopic strin
 	}
 
 	return dt, nil
-}
-
-func createAndStartPipelines(ctx context.Context, routerInputTopic, envTopic string, dt *datastore.Datastore) error {
-	routerConsumer := dt.MustHaveConsumer("router")
-	dispatcherConsumer := dt.MustHaveConsumer("dispatcher")
-	producer := dt.MustHaveProducer("producer")
-	repo := dt.ElasticRepository()
-
-	m, err := pipeline.NewManager(ctx, routerConsumer, dispatcherConsumer, producer)
-	if err != nil {
-		return err
-	}
-
-	m.InitAllPipelines(repo)
-	m.Start(ctx)
-
-	zap.S().Infow("pipelines started",
-		"router_input_topic", routerInputTopic,
-		"env_topic", envTopic,
-	)
-
-	return nil
 }

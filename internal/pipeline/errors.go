@@ -8,7 +8,7 @@ import (
 )
 
 type ErrorHandler interface {
-	Start(ctx context.Context)
+	Start(ctx context.Context) <-chan struct{}
 }
 
 // TODO: implement a persistent error handler that writes failed events to S3
@@ -21,8 +21,10 @@ func NewLogErrorHandler(errors <-chan entity.PipelineError) *LogErrorHandler {
 	return &LogErrorHandler{errors: errors}
 }
 
-func (h *LogErrorHandler) Start(ctx context.Context) {
+func (h *LogErrorHandler) Start(ctx context.Context) <-chan struct{} {
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		for {
 			select {
 			case pe, ok := <-h.errors:
@@ -36,4 +38,5 @@ func (h *LogErrorHandler) Start(ctx context.Context) {
 			}
 		}
 	}()
+	return done
 }

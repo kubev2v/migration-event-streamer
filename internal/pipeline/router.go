@@ -24,32 +24,43 @@ func NewRouter(input chan entity.Message, writer RouteWriter) *Router {
 	}
 }
 
-func (r *Router) Start(ctx context.Context) {
+func (r *Router) Start(ctx context.Context) <-chan struct{} {
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		zap.S().Info("router started")
 		defer func() { zap.S().Info("router stopped") }()
 
-		for msg := range r.input {
-			namespace := msg.Event.Context.GetSource()
-			ceType := msg.Event.Context.GetType()
+		for {
+			select {
+			case msg, ok := <-r.input:
+				if !ok {
+					return
+				}
+				namespace := msg.Event.Context.GetSource()
+				ceType := msg.Event.Context.GetType()
 
-			topic := namespace + ".events"
+				topic := namespace + ".events"
 
-			data, err := json.Marshal(msg.Event)
-			if err != nil {
-				zap.S().Warnw("failed to marshal event", "event_type", ceType, "error", err)
+				data, err := json.Marshal(msg.Event)
+				if err != nil {
+					zap.S().Warnw("failed to marshal event", "event_type", ceType, "error", err)
+					close(msg.CommitCh)
+					continue
+				}
+
+				if err := r.writer.Write(ctx, topic, data); err != nil {
+					zap.S().Warnw("failed to write message", "event_type", ceType, "topic", topic, "error", err)
+					close(msg.CommitCh)
+					continue
+				}
+
+				zap.S().Infow("message routed", "type", ceType, "namespace", namespace, "topic", topic)
 				close(msg.CommitCh)
-				continue
+			case <-ctx.Done():
+				return
 			}
-
-			if err := r.writer.Write(ctx, topic, data); err != nil {
-				zap.S().Warnw("failed to write message", "event_type", ceType, "topic", topic, "error", err)
-				close(msg.CommitCh)
-				continue
-			}
-
-			zap.S().Infow("message routed", "type", ceType, "namespace", namespace, "topic", topic)
-			close(msg.CommitCh)
 		}
 	}()
+	return done
 }
