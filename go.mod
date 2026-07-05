@@ -1,6 +1,6 @@
 module github.com/kubev2v/migration-event-streamer
 
-go 1.25.6
+go 1.25.7
 
 require (
 	github.com/cloudevents/sdk-go/v2 v2.15.2
@@ -21,7 +21,7 @@ require (
 	github.com/twmb/franz-go/plugin/kprom v1.4.0
 	go.podman.io/common v0.68.1
 	go.podman.io/podman/v6 v6.0.1
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 )
 
 require (
@@ -67,12 +67,13 @@ require (
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
 	github.com/go-openapi/swag/jsonname v0.25.5 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
+	github.com/go-test/deep v1.1.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/go-containerregistry v0.21.1 // indirect
+	github.com/google/go-containerregistry v0.21.5 // indirect
 	github.com/google/go-intervals v0.0.2 // indirect
 	github.com/google/pprof v0.0.0-20260507013755-92041b743c96 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
@@ -136,8 +137,8 @@ require (
 	github.com/prometheus/procfs v0.20.1 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.11.0 // indirect
-	github.com/sigstore/fulcio v1.8.5 // indirect
-	github.com/sigstore/protobuf-specs v0.5.0 // indirect
+	github.com/sigstore/fulcio v1.8.6 // indirect
+	github.com/sigstore/protobuf-specs v0.5.1 // indirect
 	github.com/sigstore/sigstore v1.10.6 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
@@ -174,8 +175,8 @@ require (
 	golang.org/x/term v0.44.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260406210006-6f92a3bedf2d // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260406210006-6f92a3bedf2d // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260511170946-3700d4141b60 // indirect
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect

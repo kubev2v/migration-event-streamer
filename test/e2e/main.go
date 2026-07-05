@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"github.com/kubev2v/migration-event-streamer/test/e2e/service"
 
 	"github.com/kubev2v/migration-event-streamer/test/e2e/infra"
+	"github.com/kubev2v/migration-event-streamer/test/e2e/service"
 )
 
 type configuration struct {
