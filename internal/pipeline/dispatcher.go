@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"github.com/kubev2v/migration-event-streamer/internal/processors"
@@ -35,7 +34,6 @@ type Dispatcher struct {
 	input     chan entity.Message
 	errors    chan entity.PipelineError
 	pipelines map[string]*pipelineEntry
-	done      chan struct{}
 }
 
 func NewDispatcher(input chan entity.Message, errors chan entity.PipelineError) *Dispatcher {
@@ -43,52 +41,67 @@ func NewDispatcher(input chan entity.Message, errors chan entity.PipelineError) 
 		input:     input,
 		errors:    errors,
 		pipelines: make(map[string]*pipelineEntry),
-		done:      make(chan struct{}),
 	}
 }
 
-func (d *Dispatcher) Done() <-chan struct{} {
-	return d.done
-}
+func (d *Dispatcher) Start(ctx context.Context) <-chan struct{} {
+	done := make(chan struct{})
 
-func (d *Dispatcher) Start(ctx context.Context) {
-	var doneChans []<-chan struct{}
+	var pipelineDoneChans []<-chan struct{}
 	for _, p := range d.pipelines {
-		doneChans = append(doneChans, p.pipeline.Start(ctx))
+		pipelineDoneChans = append(pipelineDoneChans, p.pipeline.Start(ctx))
 	}
 
 	go func() {
+		defer close(done)
 		zap.S().Infow("dispatcher started", "pipelines", len(d.pipelines))
 		defer func() {
 			for _, p := range d.pipelines {
 				close(p.input)
 			}
-			for _, done := range doneChans {
-				<-done
+			for _, ch := range pipelineDoneChans {
+				<-ch
 			}
-			close(d.done)
 			zap.S().Info("dispatcher stopped")
 		}()
 
-		for msg := range d.input {
-			ceType := msg.Event.Context.GetType()
-			key := ExtractEntityAction(ceType)
+		for {
+			select {
+			case msg, ok := <-d.input:
+				if !ok {
+					return
+				}
+				ceType := msg.Event.Context.GetType()
+				key := ExtractEntityAction(ceType)
 
-			entry, ok := d.pipelines[key]
-			if !ok {
-				zap.S().Warnw("no pipeline registered", "key", key, "event_type", ceType)
+				entry, ok := d.pipelines[key]
+				if !ok {
+					zap.S().Warnw("no pipeline registered", "key", key, "event_type", ceType)
+					close(msg.CommitCh)
+					continue
+				}
+
+				job := entity.NewPipelineJob(msg.Event.Data())
+				select {
+				case entry.input <- job:
+				case <-ctx.Done():
+					return
+				}
+
+				select {
+				case <-job.Done:
+				case <-ctx.Done():
+					return
+				}
 				close(msg.CommitCh)
-				continue
+
+				zap.S().Infow("message dispatched", "key", key, "id", msg.Event.Context.GetID(), "type", ceType)
+			case <-ctx.Done():
+				return
 			}
-
-			job := entity.NewPipelineJob(msg.Event.Data())
-			entry.input <- job
-			<-job.Done
-			close(msg.CommitCh)
-
-			zap.S().Infow("message dispatched", "key", key, "id", msg.Event.Context.GetID(), "type", ceType)
 		}
 	}()
+	return done
 }
 
 func (d *Dispatcher) InitAllPipelines(w elastic.Writer) {
@@ -108,6 +121,6 @@ func registerPipeline[T any, S any](d *Dispatcher, name string, process Processo
 	input := make(chan entity.PipelineJob)
 	d.pipelines[name] = &pipelineEntry{
 		input:    input,
-		pipeline: NewPipeline(name, process, write, input, d.errors).WithRetry().WithObservability(),
+		pipeline: NewPipeline(name, process, write, input, d.errors).WithRetry().WithObservability().WithRecovery(),
 	}
 }

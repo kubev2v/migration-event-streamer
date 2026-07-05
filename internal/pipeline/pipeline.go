@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"runtime/debug"
 
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"go.uber.org/zap"
@@ -65,12 +66,6 @@ func (p *Pipeline[T, S]) Start(ctx context.Context) <-chan struct{} {
 	return done
 }
 
-func (p *Pipeline[T, S]) sendError(err error) {
-	pe := entity.NewPipelineError(p.name, err)
-	p.errors <- pe
-	<-pe.Ack
-}
-
 func (p *Pipeline[T, S]) WithRetry() *Pipeline[T, S] {
 	previous := p.handle
 	p.handle = func(ctx context.Context, input T) error {
@@ -87,4 +82,27 @@ func (p *Pipeline[T, S]) WithObservability() *Pipeline[T, S] {
 		return previous(ctx, input)
 	}
 	return p
+}
+
+func (p *Pipeline[T, S]) WithRecovery() *Pipeline[T, S] {
+	previous := p.handle
+	p.handle = func(ctx context.Context, input T) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				zap.S().Errorw("pipeline panic recovered",
+					"pipeline", p.name,
+					"panic", r,
+					"stack", string(debug.Stack()),
+				)
+			}
+		}()
+		return previous(ctx, input)
+	}
+	return p
+}
+
+func (p *Pipeline[T, S]) sendError(err error) {
+	pe := entity.NewPipelineError(p.name, err)
+	p.errors <- pe
+	<-pe.Ack
 }
