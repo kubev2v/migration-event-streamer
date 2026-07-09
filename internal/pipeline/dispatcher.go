@@ -32,15 +32,18 @@ func NewDispatcher(input chan entity.Message, errors chan entity.PipelineError) 
 func (d *Dispatcher) Start(ctx context.Context) <-chan struct{} {
 	done := make(chan struct{})
 
+	pipelineCtx, pipelineCancel := context.WithCancel(ctx)
+
 	var pipelineDoneChans []<-chan struct{}
 	for _, p := range d.pipelines {
-		pipelineDoneChans = append(pipelineDoneChans, p.pipeline.Start(ctx))
+		pipelineDoneChans = append(pipelineDoneChans, p.pipeline.Start(pipelineCtx))
 	}
 
 	go func() {
 		defer close(done)
 		zap.S().Infow("dispatcher started", "pipelines", len(d.pipelines))
 		defer func() {
+			pipelineCancel()
 			for _, p := range d.pipelines {
 				close(p.input)
 			}
