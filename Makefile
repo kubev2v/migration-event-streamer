@@ -71,6 +71,30 @@ check-format: format
 	@git diff --quiet || (echo "❌ Detected uncommitted changes after format. Run 'make format' and commit the result." && git status && exit 1)
 	@echo "✅ All formatted files are up to date."
 
+##################### "make test" support start ##########################
+GINKGO := $(GOBIN)/ginkgo
+UNIT_TEST_PACKAGES := ./...
+
+$(GINKGO):
+	@echo "Installing ginkgo..."
+	@mkdir -p $(GOBIN)
+	@GOBIN=$(GOBIN) go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.27.2
+	@echo "'ginkgo' installed successfully."
+
+COVERAGE_DIR := $(CURDIR)/coverage
+COVERAGE_PROFILE := $(COVERAGE_DIR)/coverage.out
+COVERAGE_HTML := $(COVERAGE_DIR)/coverage.html
+
+test: $(GINKGO)
+	@echo "Running Unit tests..."
+	@mkdir -p $(COVERAGE_DIR)
+	@$(GINKGO) -v --show-node-events --coverprofile=coverage.out --output-dir=$(COVERAGE_DIR) $(UNIT_TEST_PACKAGES)
+	@echo "All Unit tests passed successfully."
+	@go tool cover -func=$(COVERAGE_PROFILE) | tail -1
+	@go tool cover -html=$(COVERAGE_PROFILE) -o $(COVERAGE_HTML)
+	@echo "Coverage report: $(COVERAGE_HTML)"
+##################### "make test" support end   ##########################
+
 ##################### "make lint" support start ##########################
 GOLANGCI_LINT_VERSION := v2.10.1
 GOLANGCI_LINT := $(GOBIN)/golangci-lint
@@ -100,4 +124,4 @@ lint: check-golangci-lint-version $(GOLANGCI_LINT)
 	@echo "✅ Lint passed successfully!"
 ##################### "make lint" support end   ##########################
 
-.PHONY: vendor build run tidy tidy-check format check-format lint check-golangci-lint-version
+.PHONY: vendor build run tidy tidy-check format check-format test lint check-golangci-lint-version
