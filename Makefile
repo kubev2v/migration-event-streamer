@@ -24,12 +24,6 @@ build.podman:
 	@podman build . -t quay.io/ctupangiu/migration-event-streamer:latest
 	@podman push quay.io/ctupangiu/migration-event-streamer:latest
 
-KAFKA_TOPICS := assisted.migration.events \
-	assessment \
-	visitor \
-	partner_customer \
-	user_action
-
 infra.up:
 	@podman play kube resources/dev.yml
 	@podman play kube --network host resources/observability.yml
@@ -38,7 +32,7 @@ infra.up:
 		podman exec event-streamer-broker /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1 && break; \
 		sleep 1; \
 	done
-	@for topic in $(KAFKA_TOPICS); do \
+	@for topic in assisted.migration.events migration-planner.events; do \
 		podman exec event-streamer-broker /opt/kafka/bin/kafka-topics.sh \
 			--bootstrap-server localhost:9092 \
 			--create --if-not-exists \

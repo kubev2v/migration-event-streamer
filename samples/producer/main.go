@@ -21,7 +21,7 @@ const (
 	partnerCustomerEventType   = "assisted.migration.partner_customer.updated"
 	userActionEventType        = "assisted.migration.user_action.assessment_shared"
 	inputTopic                 = "assisted.migration.events"
-	eventSource                = "com.redhat.assisted-migration"
+	eventSource                = "migration-planner" // Same as the planner default when not recognizing namespace
 )
 
 var (
