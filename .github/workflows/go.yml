@@ -57,6 +57,21 @@ jobs:
       - name: Check go.mod and go.sum are tidy
         run: make tidy-check
 
+  unit-test:
+    name: Unit Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run unit tests
+        run: make test
+
   verify-build:
     name: Verify Build
     runs-on: ubuntu-latest
