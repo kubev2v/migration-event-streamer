@@ -6,7 +6,21 @@ import (
 
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/processors"
 	"go.uber.org/zap"
+)
+
+const (
+	AssessmentCreated         = "assessment.created"
+	AssessmentDeleted         = "assessment.deleted"
+	PartnerCustomerUpdated    = "partner_customer.updated"
+	UserActionShared          = "user_action.assessment_shared"
+	UserActionUnshared        = "user_action.assessment_unshared"
+	UserActionSizingRequested = "user_action.sizing_requested"
+	UserActionComplexity      = "user_action.complexity_estimated"
+	UserActionTimeEstimated   = "user_action.time_estimated"
+	UserActionOVADownloaded   = "user_action.ova_downloaded"
+	UserActionVisited         = "user_action.visited"
 )
 
 type Consumer interface {
@@ -64,5 +78,19 @@ func (m *Manager) Wait() {
 }
 
 func (m *Manager) InitAllPipelines(w elastic.Writer) {
-	m.dispatcher.InitAllPipelines(w)
+	registerPipeline(m.dispatcher, m.errorCh, AssessmentCreated, processors.AssessmentCreatedProcessor, w.Assessment().WriteCreated)
+	registerPipeline(m.dispatcher, m.errorCh, AssessmentDeleted, processors.AssessmentDeletedProcessor, w.Assessment().WriteCascadeDelete)
+	registerPipeline(m.dispatcher, m.errorCh, UserActionVisited, processors.VisitedProcessor, w.UserAction().WriteVisited)
+	registerPipeline(m.dispatcher, m.errorCh, PartnerCustomerUpdated, processors.PartnerCustomerProcessor, w.PartnerCustomer().Write)
+	registerPipeline(m.dispatcher, m.errorCh, UserActionShared, processors.ShareAssessmentProcessor, w.UserAction().WriteShareAssessment)
+	registerPipeline(m.dispatcher, m.errorCh, UserActionUnshared, processors.UnshareAssessmentProcessor, w.UserAction().WriteUnshareAssessment)
+	registerPipeline(m.dispatcher, m.errorCh, UserActionSizingRequested, processors.SizingRequestedProcessor, w.UserAction().WriteSizingRequested)
+	registerPipeline(m.dispatcher, m.errorCh, UserActionComplexity, processors.ComplexityEstimatedProcessor, w.UserAction().WriteComplexityEstimated)
+	registerPipeline(m.dispatcher, m.errorCh, UserActionTimeEstimated, processors.TimeEstimatedProcessor, w.UserAction().WriteTimeEstimated)
+	registerPipeline(m.dispatcher, m.errorCh, UserActionOVADownloaded, processors.OVADownloadedProcessor, w.UserAction().WriteOVADownloaded)
+}
+
+func registerPipeline[T any, S any](d *Dispatcher, errors chan<- entity.PipelineError, name string, process Processor[T, S], write WriteFn[S]) {
+	input := make(chan entity.PipelineJob)
+	d.Register(name, input, NewPipeline(name, process, write, input, errors).WithRetry().WithObservability().WithRecovery())
 }
