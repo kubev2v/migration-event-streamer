@@ -2,23 +2,8 @@ package pipeline
 
 import (
 	"context"
-	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
-	"github.com/kubev2v/migration-event-streamer/internal/processors"
 	"go.uber.org/zap"
-)
-
-const (
-	AssessmentCreated         = "assessment.created"
-	AssessmentDeleted         = "assessment.deleted"
-	PartnerCustomerUpdated    = "partner_customer.updated"
-	UserActionShared          = "user_action.assessment_shared"
-	UserActionUnshared        = "user_action.assessment_unshared"
-	UserActionSizingRequested = "user_action.sizing_requested"
-	UserActionComplexity      = "user_action.complexity_estimated"
-	UserActionTimeEstimated   = "user_action.time_estimated"
-	UserActionOVADownloaded   = "user_action.ova_downloaded"
-	UserActionVisited         = "user_action.visited"
 )
 
 type PipelineStarter interface {
@@ -104,23 +89,6 @@ func (d *Dispatcher) Start(ctx context.Context) <-chan struct{} {
 	return done
 }
 
-func (d *Dispatcher) InitAllPipelines(w elastic.Writer) {
-	registerPipeline(d, AssessmentCreated, processors.AssessmentCreatedProcessor, w.Assessment().WriteCreated)
-	registerPipeline(d, AssessmentDeleted, processors.AssessmentDeletedProcessor, w.Assessment().WriteCascadeDelete)
-	registerPipeline(d, UserActionVisited, processors.VisitedProcessor, w.UserAction().WriteVisited)
-	registerPipeline(d, PartnerCustomerUpdated, processors.PartnerCustomerProcessor, w.PartnerCustomer().Write)
-	registerPipeline(d, UserActionShared, processors.ShareAssessmentProcessor, w.UserAction().WriteShareAssessment)
-	registerPipeline(d, UserActionUnshared, processors.UnshareAssessmentProcessor, w.UserAction().WriteUnshareAssessment)
-	registerPipeline(d, UserActionSizingRequested, processors.SizingRequestedProcessor, w.UserAction().WriteSizingRequested)
-	registerPipeline(d, UserActionComplexity, processors.ComplexityEstimatedProcessor, w.UserAction().WriteComplexityEstimated)
-	registerPipeline(d, UserActionTimeEstimated, processors.TimeEstimatedProcessor, w.UserAction().WriteTimeEstimated)
-	registerPipeline(d, UserActionOVADownloaded, processors.OVADownloadedProcessor, w.UserAction().WriteOVADownloaded)
-}
-
-func registerPipeline[T any, S any](d *Dispatcher, name string, process Processor[T, S], write WriteFn[S]) {
-	input := make(chan entity.PipelineJob)
-	d.pipelines[name] = &pipelineEntry{
-		input:    input,
-		pipeline: NewPipeline(name, process, write, input, d.errors).WithRetry().WithObservability().WithRecovery(),
-	}
+func (d *Dispatcher) Register(name string, input chan entity.PipelineJob, pipeline PipelineStarter) {
+	d.pipelines[name] = &pipelineEntry{input: input, pipeline: pipeline}
 }
