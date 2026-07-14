@@ -3,7 +3,9 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"runtime/debug"
+	"time"
 
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"go.uber.org/zap"
@@ -66,12 +68,45 @@ func (p *Pipeline[T, S]) Start(ctx context.Context) <-chan struct{} {
 	return done
 }
 
-func (p *Pipeline[T, S]) WithRetry() *Pipeline[T, S] {
+func (p *Pipeline[T, S]) WithRetry(maxRetries int, baseDelay time.Duration) *Pipeline[T, S] {
 	previous := p.handle
 	p.handle = func(ctx context.Context, input T) error {
-		// TODO add retry function
-		return previous(ctx, input)
+		var err error
+		delay := baseDelay
+		for attempt := range maxRetries + 1 {
+			if err = previous(ctx, input); err == nil {
+				return nil
+			}
+
+			if attempt == maxRetries {
+				break
+			}
+
+			zap.S().Warnw("pipeline handler failed, retrying",
+				"pipeline", p.name,
+				"attempt", attempt+1,
+				"maxRetries", maxRetries,
+				"error", err,
+			)
+
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+
+			if delay > time.Duration(math.MaxInt64/2) {
+				delay = time.Duration(math.MaxInt64)
+				continue
+			}
+			delay *= 2
+		}
+
+		return err
 	}
+
 	return p
 }
 
