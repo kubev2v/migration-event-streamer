@@ -1,6 +1,11 @@
 package config
 
-import "time"
+import (
+	"crypto/tls"
+	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/sasl/scram"
+	"time"
+)
 
 //go:generate go run github.com/ecordell/optgen -output zz_generated.configuration.go . Configuration Kafka ElasticSearch
 
@@ -45,4 +50,16 @@ func (e ElasticSearch) GetDialTimeout() time.Duration {
 		return 1 * time.Second
 	}
 	return d
+}
+
+func (k Kafka) ConnKgoOpts() []kgo.Opt {
+	var opts []kgo.Opt
+	if k.TLS {
+		opts = append(opts, kgo.DialTLSConfig(&tls.Config{MinVersion: tls.VersionTLS12}))
+	}
+	if k.SASLEnabled {
+		auth := scram.Auth{User: k.SASLUsername, Pass: k.SASLPassword}
+		opts = append(opts, kgo.SASL(auth.AsSha512Mechanism()))
+	}
+	return opts
 }
