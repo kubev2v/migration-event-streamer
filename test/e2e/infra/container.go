@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	pkgkafka "github.com/kubev2v/migration-event-streamer/pkg/kafka"
 	"go.uber.org/zap"
 )
 
@@ -111,22 +112,11 @@ func (c *ContainerInfraManager) waitForKafka(timeout time.Duration) error {
 
 func (c *ContainerInfraManager) CreateKafkaTopics() error {
 	zap.S().Info("Creating Kafka topics...")
+	brokers := []string{fmt.Sprintf("localhost:%d", kafkaPort)}
 	for _, topic := range kafkaTopics {
-		exitCode, err := c.runner.Exec(kafkaContainerName, []string{
-			"/opt/kafka/bin/kafka-topics.sh",
-			"--bootstrap-server", "localhost:9092",
-			"--create", "--if-not-exists",
-			"--topic", topic,
-			"--partitions", "1",
-			"--replication-factor", "1",
-		})
-		if err != nil {
+		if err := pkgkafka.EnsureTopic(brokers, nil, topic, 1, 1); err != nil {
 			return fmt.Errorf("failed to create topic %s: %w", topic, err)
 		}
-		if exitCode != 0 {
-			return fmt.Errorf("kafka-topics.sh returned exit code %d for topic %s", exitCode, topic)
-		}
-		zap.S().Infof("Created topic: %s", topic)
 	}
 	return nil
 }

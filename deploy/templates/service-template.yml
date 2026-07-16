@@ -49,6 +49,38 @@ objects:
           labels:
             app: migration-event-streamer
         spec:
+          initContainers:
+            - name: init-topics
+              image: ${IMAGE_NAME}:${IMAGE_TAG}
+              command: ["/app/streamer"]
+              args: ["init", "--router-input-topic", "${STREAMER_ROUTER_INPUT_TOPIC}"]
+              env:
+                - name: STREAMER_KAFKA_BROKERS
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${MSK_SECRET_NAME}
+                      key: bootstrap_brokers_sasl_scram
+                - name: STREAMER_KAFKA_TLS
+                  value: ${STREAMER_KAFKA_TLS}
+                - name: STREAMER_KAFKA_SASL_ENABLED
+                  value: ${STREAMER_KAFKA_SASL_ENABLED}
+                - name: STREAMER_KAFKA_SASL_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+                      key: username
+                - name: STREAMER_KAFKA_SASL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+                      key: password
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
           containers:
             - name: migration-event-streamer
               image: ${IMAGE_NAME}:${IMAGE_TAG}
