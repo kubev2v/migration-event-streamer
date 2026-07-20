@@ -170,8 +170,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/jzelinskie/cobrautil/v2 v2.0.0-20260331224425-513c88b62ffe h1:SA9iBugzqlof0pGKCn1f1zg7JWwkJuyPRu2fO86Gd3M=
 github.com/jzelinskie/cobrautil/v2 v2.0.0-20260331224425-513c88b62ffe/go.mod h1:YAKfloXwyXXcSiYqlyFFki9xnOsFC40+HONA3FnXEBA=
-github.com/jzelinskie/stringz v0.0.2 h1:OSjMEYvz8tjhovgZ/6cGcPID736ubeukr35mu6RYAmg=
-github.com/jzelinskie/stringz v0.0.2/go.mod h1:hHYbgxJuNLRw91CmpuFsYEOyQqpDVFg8pvEh23vy4P0=
+github.com/jzelinskie/stringz v0.0.3 h1:0GhG3lVMYrYtIvRbxvQI6zqRTT1P1xyQlpa0FhfUXas=
+github.com/jzelinskie/stringz v0.0.3/go.mod h1:hHYbgxJuNLRw91CmpuFsYEOyQqpDVFg8pvEh23vy4P0=
 github.com/kevinburke/ssh_config v1.5.0 h1:3cPZmE54xb5j3G5xQCjSvokqNwU2uW+3ry1+PRLSPpA=
 github.com/kevinburke/ssh_config v1.5.0/go.mod h1:q2RIzfka+BXARoNexmF9gkxEX7DmvbW9P4hIVx2Kg4M=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
