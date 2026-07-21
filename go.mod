@@ -119,7 +119,7 @@ require (
 	github.com/oapi-codegen/runtime v1.1.2 // indirect
 	github.com/oasdiff/yaml v0.0.0-20250309154309-f31be36b4037 // indirect
 	github.com/oasdiff/yaml3 v0.0.0-20250309153720-d2182401db90 // indirect
-	github.com/opencontainers/cgroups v0.0.6 // indirect
+	github.com/opencontainers/cgroups v0.0.8 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20260316125833-8a4db579f5c8 // indirect
