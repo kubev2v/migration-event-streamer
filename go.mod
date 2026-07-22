@@ -4,7 +4,7 @@ go 1.25.7
 
 require (
 	github.com/cloudevents/sdk-go/v2 v2.15.2
-	github.com/creasty/defaults v1.7.0
+	github.com/creasty/defaults v1.8.0
 	github.com/elastic/go-elasticsearch/v8 v8.15.0
 	github.com/fatih/color v1.19.0
 	github.com/go-extras/cobraflags v0.0.0-20260116100222-f76efc9500d4
