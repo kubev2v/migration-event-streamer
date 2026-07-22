@@ -3,7 +3,7 @@ module github.com/kubev2v/migration-event-streamer
 go 1.25.7
 
 require (
-	github.com/cloudevents/sdk-go/v2 v2.15.2
+	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/creasty/defaults v1.7.0
 	github.com/elastic/go-elasticsearch/v8 v8.15.0
 	github.com/fatih/color v1.19.0
