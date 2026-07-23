@@ -2,15 +2,12 @@ package datastore
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/kafka"
 	plannerEvents "github.com/kubev2v/migration-planner/pkg/events"
-	"github.com/twmb/franz-go/pkg/kgo"
-	"github.com/twmb/franz-go/pkg/sasl/scram"
 	"go.uber.org/zap"
 )
 
@@ -70,18 +67,7 @@ func (d *Datastore) WithKafkaProducer(name string, kConfig config.Kafka) *Datast
 			return fmt.Errorf("failed to create kafka producer with name %s. producer already exists", name)
 		}
 
-		var opts []kgo.Opt
-		if kConfig.TLS {
-			opts = append(opts, kgo.DialTLSConfig(&tls.Config{MinVersion: tls.VersionTLS12}))
-		}
-
-		if kConfig.SASLEnabled {
-			auth := scram.Auth{
-				User: kConfig.SASLUsername,
-				Pass: kConfig.SASLPassword,
-			}
-			opts = append(opts, kgo.SASL(auth.AsSha512Mechanism()))
-		}
+		opts := kConfig.ConnKgoOpts()
 
 		kp, err := plannerEvents.NewKafkaProducer(kConfig.Brokers, opts...)
 		if err != nil {
