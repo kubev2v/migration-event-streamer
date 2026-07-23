@@ -62,7 +62,7 @@ require (
 	github.com/fsouza/go-dockerclient v1.13.2 // indirect
 	github.com/getkin/kin-openapi v0.142.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
-	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v1.0.0 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
