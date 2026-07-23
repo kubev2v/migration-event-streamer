@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	elastic "github.com/elastic/go-elasticsearch/v8"
+	elastic "github.com/elastic/go-elasticsearch/v9"
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"go.uber.org/zap"
 )

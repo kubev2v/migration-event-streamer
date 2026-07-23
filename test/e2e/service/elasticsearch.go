@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 
-	elastic "github.com/elastic/go-elasticsearch/v8"
+	elastic "github.com/elastic/go-elasticsearch/v9"
 )
 
 const (
