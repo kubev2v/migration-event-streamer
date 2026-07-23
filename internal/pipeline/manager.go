@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
@@ -11,6 +12,9 @@ import (
 )
 
 const (
+	defaultMaxRetries = 3
+	defaultRetryDelay = 1000 * time.Millisecond
+
 	AssessmentCreated         = "assessment.created"
 	AssessmentDeleted         = "assessment.deleted"
 	PartnerCustomerUpdated    = "partner_customer.updated"
@@ -92,5 +96,5 @@ func (m *Manager) InitAllPipelines(w elastic.Writer) {
 
 func registerPipeline[T any, S any](d *Dispatcher, errors chan<- entity.PipelineError, name string, process Processor[T, S], write WriteFn[S]) {
 	input := make(chan entity.PipelineJob)
-	d.Register(name, input, NewPipeline(name, process, write, input, errors).WithRetry().WithObservability().WithRecovery())
+	d.Register(name, input, NewPipeline(name, process, write, input, errors).WithRetry(defaultMaxRetries, defaultRetryDelay).WithObservability().WithRecovery())
 }

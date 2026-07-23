@@ -260,6 +260,130 @@ var _ = Describe("Pipeline", func() {
 		})
 	})
 
+	Describe("WithRetry", func() {
+		var (
+			ctx       context.Context
+			cancel    context.CancelFunc
+			input     chan entity.PipelineJob
+			errs      chan entity.PipelineError
+			getErrors func() []entity.PipelineError
+		)
+
+		BeforeEach(func() {
+			ctx, cancel = context.WithCancel(context.Background())
+			input = make(chan entity.PipelineJob)
+			errs = make(chan entity.PipelineError, 10)
+			getErrors = drainErrors(errs)
+		})
+
+		AfterEach(func() {
+			cancel()
+		})
+
+		It("should succeed without retry when no error occurs", func() {
+			var callCount int
+			p := pipeline.NewPipeline[testInput, testOutput](
+				"test",
+				func(_ context.Context, in testInput) (testOutput, error) {
+					callCount++
+					return testOutput{Result: in.Value}, nil
+				},
+				func(_ context.Context, _ testOutput) error { return nil },
+				input, errs,
+			).WithRetry(3, 0)
+			done := p.Start(ctx)
+
+			data, _ := json.Marshal(testInput{Value: "hello"})
+			job := entity.NewPipelineJob(data)
+			input <- job
+
+			Eventually(job.Done).Should(BeClosed())
+			Expect(callCount).To(Equal(1))
+			Expect(getErrors()).To(BeEmpty())
+
+			cancel()
+			Eventually(done).Should(BeClosed())
+		})
+
+		It("should retry and succeed after transient failures", func() {
+			var callCount int
+			p := pipeline.NewPipeline[testInput, testOutput](
+				"test",
+				func(_ context.Context, in testInput) (testOutput, error) {
+					callCount++
+					if callCount < 3 {
+						return testOutput{}, errors.New("transient error")
+					}
+					return testOutput{Result: in.Value}, nil
+				},
+				func(_ context.Context, _ testOutput) error { return nil },
+				input, errs,
+			).WithRetry(3, 0)
+			done := p.Start(ctx)
+
+			data, _ := json.Marshal(testInput{Value: "hello"})
+			job := entity.NewPipelineJob(data)
+			input <- job
+
+			Eventually(job.Done).Should(BeClosed())
+			Expect(callCount).To(Equal(3))
+			Expect(getErrors()).To(BeEmpty())
+
+			cancel()
+			Eventually(done).Should(BeClosed())
+		})
+
+		It("should return error after exhausting all retries", func() {
+			var callCount int
+			p := pipeline.NewPipeline[testInput, testOutput](
+				"test",
+				func(_ context.Context, _ testInput) (testOutput, error) {
+					callCount++
+					return testOutput{}, errors.New("persistent error")
+				},
+				func(_ context.Context, _ testOutput) error { return nil },
+				input, errs,
+			).WithRetry(3, 0)
+			done := p.Start(ctx)
+
+			data, _ := json.Marshal(testInput{Value: "hello"})
+			job := entity.NewPipelineJob(data)
+			input <- job
+
+			Eventually(job.Done).Should(BeClosed())
+			Expect(callCount).To(Equal(4)) // 1 initial + 3 retries
+			Eventually(func() []entity.PipelineError { return getErrors() }).Should(HaveLen(1))
+			Expect(getErrors()[0].Err.Error()).To(Equal("persistent error"))
+
+			cancel()
+			Eventually(done).Should(BeClosed())
+		})
+
+		It("should stop retrying when context is cancelled", func() {
+			var callCount int
+			p := pipeline.NewPipeline[testInput, testOutput](
+				"test",
+				func(fnCtx context.Context, _ testInput) (testOutput, error) {
+					callCount++
+					if callCount == 1 {
+						cancel()
+					}
+					return testOutput{}, errors.New("will cancel")
+				},
+				func(_ context.Context, _ testOutput) error { return nil },
+				input, errs,
+			).WithRetry(3, 1000*time.Millisecond)
+			done := p.Start(ctx)
+
+			data, _ := json.Marshal(testInput{Value: "hello"})
+			job := entity.NewPipelineJob(data)
+			input <- job
+
+			Eventually(done).Should(BeClosed())
+			Expect(callCount).To(Equal(1))
+		})
+	})
+
 	Describe("sendError", func() {
 		It("should block until the error is acknowledged", func() {
 			input := make(chan entity.PipelineJob)
