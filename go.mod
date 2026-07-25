@@ -20,7 +20,7 @@ require (
 	github.com/twmb/franz-go v1.21.5
 	github.com/twmb/franz-go/plugin/kprom v1.4.0
 	go.podman.io/common v0.68.1
-	go.podman.io/podman/v6 v6.0.1
+	go.podman.io/podman/v6 v6.0.2
 	go.uber.org/zap v1.28.0
 )
 
@@ -155,7 +155,7 @@ require (
 	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	go.podman.io/buildah v1.44.0 // indirect
+	go.podman.io/buildah v1.44.1 // indirect
 	go.podman.io/image/v5 v5.40.0 // indirect
 	go.podman.io/storage v1.63.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
