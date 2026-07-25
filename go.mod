@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jzelinskie/cobrautil/v2 v2.0.0-20260331224425-513c88b62ffe
 	github.com/kubev2v/migration-planner v0.18.0
-	github.com/onsi/ginkgo/v2 v2.29.0
+	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.41.0
 	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/prometheus/client_golang v1.23.2
