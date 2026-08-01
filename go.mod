@@ -146,7 +146,7 @@ require (
 	github.com/sylabs/sif/v2 v2.24.1 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.13.1 // indirect
-	github.com/ulikunitz/xz v0.5.15 // indirect
+	github.com/ulikunitz/xz v0.5.16 // indirect
 	github.com/vbatts/tar-split v0.12.3 // indirect
 	github.com/vbauerster/cupwriter v0.0.4 // indirect
 	github.com/vbauerster/mpb/v8 v8.15.0 // indirect
@@ -158,7 +158,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.podman.io/buildah v1.44.0 // indirect
 	go.podman.io/image/v5 v5.40.0 // indirect
-	go.podman.io/storage v1.63.0 // indirect
+	go.podman.io/storage v1.64.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
