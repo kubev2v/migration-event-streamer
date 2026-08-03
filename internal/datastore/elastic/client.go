@@ -3,12 +3,13 @@ package elastic
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/elastic/elastic-transport-go/v8/elastictransport"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 
-	elastic "github.com/elastic/go-elasticsearch/v8"
+	elastic "github.com/elastic/go-elasticsearch/v9"
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"go.uber.org/zap"
 )
@@ -21,22 +22,24 @@ func NewElasticsearchClient(config config.ElasticSearch) (*elastic.Client, error
 	addresses := []string{
 		host,
 	}
-	cfg := elastic.Config{
-		Addresses: addresses,
-		Username:  config.Username,
-		Password:  config.Password,
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost:   10,
-			ResponseHeaderTimeout: config.GetResponseTimeout(),
-			DialContext:           (&net.Dialer{Timeout: config.GetDialTimeout()}).DialContext,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: config.SSLInsecureSkipVerify,
-				MinVersion:         tls.VersionTLS12,
-			},
-		},
-	}
 
-	client, err := elastic.NewClient(cfg)
+	client, err := elastic.New(
+		elastic.WithAddresses(addresses...),
+		elastic.WithBasicAuth(config.Username, config.Password),
+		elastic.WithTransportOptions(
+			elastictransport.WithTransport(&http.Transport{
+				MaxIdleConnsPerHost:   10,
+				ResponseHeaderTimeout: config.GetResponseTimeout(),
+				DialContext: (&net.Dialer{
+					Timeout: config.GetDialTimeout(),
+				}).DialContext,
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: config.SSLInsecureSkipVerify,
+					MinVersion:         tls.VersionTLS12,
+				},
+			}),
+		),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize elasticsearch client %w", err)
 	}

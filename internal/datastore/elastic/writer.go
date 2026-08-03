@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/elastic/go-elasticsearch/v8/esapi"
+	"github.com/elastic/go-elasticsearch/v9/esapi"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"go.uber.org/zap"
 
-	elastic "github.com/elastic/go-elasticsearch/v8"
+	elastic "github.com/elastic/go-elasticsearch/v9"
 )
 
 type Writer interface {
