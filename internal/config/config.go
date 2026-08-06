@@ -26,7 +26,7 @@ type ElasticSearch struct {
 	Password              string   `debugmap:"hidden"`
 	Host                  string   `debugmap:"visible" default:"http://localhost:9200"`
 	Indexes               []string `debugmap:"visible"`
-	SSLInsecureSkipVerify bool     `debugmap:"sensitive" default:"true"`
+	SSLInsecureSkipVerify bool     `debugmap:"sensitive" default:"false"`
 	ResponseTimeout       string   `debugmap:"visible" default:"90s"`
 	DialTimeout           string   `debugmap:"visible" default:"1s"`
 }
