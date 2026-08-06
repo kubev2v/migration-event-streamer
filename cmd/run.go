@@ -37,8 +37,18 @@ func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.
 			)
 
 			go func() {
-				http.Handle("/metrics", promhttp.Handler())
-				_ = http.ListenAndServe(fmt.Sprintf(":%d", cfg.MetricsPort), nil)
+				mux := http.NewServeMux()
+				mux.Handle("/metrics", promhttp.Handler())
+				srv := &http.Server{
+					Addr:              fmt.Sprintf(":%d", cfg.MetricsPort),
+					Handler:           mux,
+					ReadHeaderTimeout: 5 * time.Second,
+					ReadTimeout:       10 * time.Second,
+					WriteTimeout:      10 * time.Second,
+				}
+				if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					zap.S().Errorf("metrics server error: %s", err)
+				}
 			}()
 
 			envTopic := namespace.Topic()
