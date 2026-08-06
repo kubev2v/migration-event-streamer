@@ -1,5 +1,5 @@
 # Builder container
-FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/go-toolset AS builder
+FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/go-toolset:1.25.9@sha256:90a36bc2013b3fcb28e2a4b082c9b895d7c2c679e58b95aed9721970f3339d0e AS builder
 
 USER 0
 
@@ -12,7 +12,7 @@ COPY . .
 
 RUN GOCACHE=/gocache CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /streamer main.go
 
-FROM registry.access.redhat.com/ubi9/ubi-micro
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1784702951@sha256:b1e86b97028b8fcfb6d85f997c39e6b6b67496163ef8d80d243220a4918e8bef
 
 WORKDIR /app
 
