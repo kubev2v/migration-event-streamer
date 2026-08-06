@@ -49,16 +49,38 @@ objects:
           labels:
             app: migration-event-streamer
         spec:
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
           containers:
             - name: migration-event-streamer
               image: ${IMAGE_NAME}:${IMAGE_TAG}
               imagePullPolicy: Always
               command: ["/app/streamer"]
               args: ["run"]
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
               ports:
                 - name: metrics
                   containerPort: ${{STREAMER_METRICS_PORT}}
                   protocol: TCP
+              livenessProbe:
+                httpGet:
+                  path: /metrics
+                  port: metrics
+                initialDelaySeconds: 10
+                periodSeconds: 30
+              readinessProbe:
+                httpGet:
+                  path: /metrics
+                  port: metrics
+                initialDelaySeconds: 5
+                periodSeconds: 15
               env:
                 - name: STREAMER_KAFKA_BROKERS
                   valueFrom:
