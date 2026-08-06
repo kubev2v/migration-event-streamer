@@ -31,7 +31,7 @@ func NewElasticsearchClient(config config.ElasticSearch) (*elastic.Client, error
 			DialContext:           (&net.Dialer{Timeout: config.GetDialTimeout()}).DialContext,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: config.SSLInsecureSkipVerify,
-				MinVersion:         tls.VersionTLS11,
+				MinVersion:         tls.VersionTLS12,
 			},
 		},
 	}
