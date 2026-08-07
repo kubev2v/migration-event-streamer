@@ -6,7 +6,7 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/creasty/defaults v1.7.0
 	github.com/elastic/elastic-transport-go/v8 v8.9.0
-	github.com/elastic/go-elasticsearch/v9 v9.4.2
+	github.com/elastic/go-elasticsearch/v9 v9.5.0
 	github.com/fatih/color v1.19.0
 	github.com/go-extras/cobraflags v0.0.0-20260116100222-f76efc9500d4
 	github.com/google/uuid v1.6.0
