@@ -11,10 +11,10 @@ import (
 
 const (
 	inputTopicPartitions        = 3
-	inputTopicReplicationFactor = 3
+	inputTopicReplicationFactor = 2
 
 	envTopicPartitions        = 3
-	envTopicReplicationFactor = 3
+	envTopicReplicationFactor = 2
 )
 
 func NewInitCommand(cfg *config.Configuration) *cobra.Command {
