@@ -13,6 +13,10 @@ parameters:
     value: assisted-migration-msk
   - name: MSK_CREDENTIALS_SECRET_NAME
     required: true
+    description: The secret stores the credentials for MSK service account
+  - name: MSK_ADMIN_CREDENTIALS_SECRET_NAME
+    description: The secret stores the credentials for MSK admin account
+    required: true
   - name: ES_SECRET_NAME
     value: assisted-migration-elasticsearch
   - name: ES_CREDENTIALS_SECRET_NAME
@@ -67,12 +71,12 @@ objects:
                 - name: STREAMER_KAFKA_SASL_USERNAME
                   valueFrom:
                     secretKeyRef:
-                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+                      name: ${MSK_ADMIN_CREDENTIALS_SECRET_NAME}
                       key: username
                 - name: STREAMER_KAFKA_SASL_PASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+                      name: ${MSK_ADMIN_CREDENTIALS_SECRET_NAME}
                       key: password
               resources:
                 requests:
