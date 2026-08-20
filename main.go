@@ -34,7 +34,6 @@ func main() {
 	}
 
 	rootCmd.AddCommand(cmd.NewRunCommand(cfg, version, gitCommit))
-	rootCmd.AddCommand(cmd.NewInitCommand(cfg))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

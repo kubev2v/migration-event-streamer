@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/sasl/scram"
 	"github.com/twmb/franz-go/plugin/kprom"
 	"go.uber.org/zap"
 )
@@ -20,8 +22,8 @@ type Consumer struct {
 	done   chan struct{}
 }
 
-func NewConsumer(kConfig config.Kafka, topic, consumerGroupID string) (*Consumer, error) {
-	clientID := kConfig.ClientID
+func NewConsumer(cfg config.Kafka, topic, consumerGroupID string) (*Consumer, error) {
+	clientID := cfg.ClientID
 	if clientID == "" {
 		hostname, err := os.Hostname()
 		if err != nil {
@@ -32,7 +34,7 @@ func NewConsumer(kConfig config.Kafka, topic, consumerGroupID string) (*Consumer
 
 	opts := []kgo.Opt{
 		kgo.AutoCommitMarks(),
-		kgo.SeedBrokers(kConfig.Brokers...),
+		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.ClientID(clientID),
 		kgo.ConsumerGroup(consumerGroupID),
 		kgo.ConsumeTopics(topic),
@@ -41,7 +43,14 @@ func NewConsumer(kConfig config.Kafka, topic, consumerGroupID string) (*Consumer
 		kgo.WithHooks(kprom.NewMetrics("kafka_consumer")),
 	}
 
-	opts = append(opts, kConfig.ConnKgoOpts()...)
+	if cfg.TLS {
+		opts = append(opts, kgo.DialTLSConfig(&tls.Config{MinVersion: tls.VersionTLS12}))
+	}
+
+	if cfg.SASLEnabled {
+		auth := scram.Auth{User: cfg.SASLUsername, Pass: cfg.SASLPassword}
+		opts = append(opts, kgo.SASL(auth.AsSha512Mechanism()))
+	}
 
 	cl, err := kgo.NewClient(opts...)
 	if err != nil {
