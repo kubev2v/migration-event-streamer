@@ -53,125 +53,160 @@ objects:
           labels:
             app: migration-event-streamer
         spec:
-          initContainers:
-            - name: init-topics
-              image: ${IMAGE_NAME}:${IMAGE_TAG}
-              command: [ "/app/streamer" ]
-              args: [ "init", "--router-input-topic", "${STREAMER_ROUTER_INPUT_TOPIC}" ]
-              env:
-                - name: STREAMER_KAFKA_BROKERS
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${MSK_SECRET_NAME}
-                      key: bootstrap_brokers_sasl_scram
-                - name: STREAMER_KAFKA_TLS
-                  value: ${STREAMER_KAFKA_TLS}
-                - name: STREAMER_KAFKA_SASL_ENABLED
-                  value: ${STREAMER_KAFKA_SASL_ENABLED}
-                - name: STREAMER_KAFKA_SASL_USERNAME
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${MSK_ADMIN_CREDENTIALS_SECRET_NAME}
-                      key: username
-                - name: STREAMER_KAFKA_SASL_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${MSK_ADMIN_CREDENTIALS_SECRET_NAME}
-                      key: password
-              resources:
-                requests:
-                  cpu: 50m
-                  memory: 64Mi
-                limits:
-                  cpu: 100m
-                  memory: 128Mi
+#          initContainers:
+#            - name: init-topics
+#              image: ${IMAGE_NAME}:${IMAGE_TAG}
+#              command: [ "/app/streamer" ]
+#              args: [ "init", "--router-input-topic", "${STREAMER_ROUTER_INPUT_TOPIC}" ]
+#              env:
+#                - name: STREAMER_KAFKA_BROKERS
+#                  valueFrom:
+#                    secretKeyRef:
+#                      name: ${MSK_SECRET_NAME}
+#                      key: bootstrap_brokers_sasl_scram
+#                - name: STREAMER_KAFKA_TLS
+#                  value: ${STREAMER_KAFKA_TLS}
+#                - name: STREAMER_KAFKA_SASL_ENABLED
+#                  value: ${STREAMER_KAFKA_SASL_ENABLED}
+#                - name: STREAMER_KAFKA_SASL_USERNAME
+#                  valueFrom:
+#                    secretKeyRef:
+#                      name: ${MSK_ADMIN_CREDENTIALS_SECRET_NAME}
+#                      key: username
+#                - name: STREAMER_KAFKA_SASL_PASSWORD
+#                  valueFrom:
+#                    secretKeyRef:
+#                      name: ${MSK_ADMIN_CREDENTIALS_SECRET_NAME}
+#                      key: password
+#              resources:
+#                requests:
+#                  cpu: 50m
+#                  memory: 64Mi
+#                limits:
+#                  cpu: 100m
+#                  memory: 128Mi
           securityContext:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
           containers:
-            - name: migration-event-streamer
-              image: ${IMAGE_NAME}:${IMAGE_TAG}
+            - name: msk-debug
+              image: quay.io/redhat-services-prod/app-sre-tenant/container-images-master/msk-debug-container-master:3.7-1
               imagePullPolicy: Always
-              command: ["/app/streamer"]
-              args: ["run"]
+              command: ["/bin/sh", "-c", "sleep infinity"]
               securityContext:
                 allowPrivilegeEscalation: false
-                readOnlyRootFilesystem: true
+                readOnlyRootFilesystem: false
                 capabilities:
                   drop:
                     - ALL
-              ports:
-                - name: metrics
-                  containerPort: ${{STREAMER_METRICS_PORT}}
-                  protocol: TCP
-              livenessProbe:
-                httpGet:
-                  path: /metrics
-                  port: metrics
-                initialDelaySeconds: 10
-                periodSeconds: 30
-              readinessProbe:
-                httpGet:
-                  path: /metrics
-                  port: metrics
-                initialDelaySeconds: 5
-                periodSeconds: 15
               env:
-                - name: STREAMER_KAFKA_BROKERS
+                - name: MSK_BOOTSTRAP_SERVERS
                   valueFrom:
                     secretKeyRef:
                       name: ${MSK_SECRET_NAME}
                       key: bootstrap_brokers_sasl_scram
-                - name: STREAMER_KAFKA_CLIENT_ID
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: STREAMER_KAFKA_TLS
-                  value: ${STREAMER_KAFKA_TLS}
-                - name: STREAMER_KAFKA_SASL_ENABLED
-                  value: ${STREAMER_KAFKA_SASL_ENABLED}
-                - name: STREAMER_KAFKA_SASL_USERNAME
+                - name: MSK_USER
                   valueFrom:
                     secretKeyRef:
                       name: ${MSK_CREDENTIALS_SECRET_NAME}
                       key: username
-                - name: STREAMER_KAFKA_SASL_PASSWORD
+                - name: MSK_PASSWORD
                   valueFrom:
                     secretKeyRef:
                       name: ${MSK_CREDENTIALS_SECRET_NAME}
                       key: password
-                - name: STREAMER_ELASTIC_HOST
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${ES_SECRET_NAME}
-                      key: endpoint
-                - name: STREAMER_ELASTIC_USERNAME
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${ES_CREDENTIALS_SECRET_NAME}
-                      key: master_user_name
-                - name: STREAMER_ELASTIC_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${ES_CREDENTIALS_SECRET_NAME}
-                      key: master_user_password
-                - name: STREAMER_ELASTIC_SSL_INSECURE
-                  value: "false"
-                - name: STREAMER_ELASTIC_INDEXES
-                  value: ${STREAMER_ELASTIC_INDEXES}
-                - name: STREAMER_ROUTER_INPUT_TOPIC
-                  value: ${STREAMER_ROUTER_INPUT_TOPIC}
-                - name: STREAMER_LOG_FORMAT
-                  value: ${STREAMER_LOG_FORMAT}
-                - name: STREAMER_LOG_LEVEL
-                  value: ${STREAMER_LOG_LEVEL}
-                - name: STREAMER_METRICS_PORT
-                  value: ${STREAMER_METRICS_PORT}
+                - name: MSK_CONFIG
+                  value: "/client.properties"
               resources:
                 requests:
-                  cpu: 100m
-                  memory: 128Mi
+                  cpu: 10m
+                  memory: 32Mi
                 limits:
-                  cpu: 500m
-                  memory: 256Mi
+                  cpu: 50m
+                  memory: 64Mi
+#            - name: migration-event-streamer
+#              image: ${IMAGE_NAME}:${IMAGE_TAG}
+#              imagePullPolicy: Always
+#              command: ["/app/streamer"]
+#              args: ["run"]
+#              securityContext:
+#                allowPrivilegeEscalation: false
+#                readOnlyRootFilesystem: true
+#                capabilities:
+#                  drop:
+#                    - ALL
+#              ports:
+#                - name: metrics
+#                  containerPort: ${{STREAMER_METRICS_PORT}}
+#                  protocol: TCP
+#              livenessProbe:
+#                httpGet:
+#                  path: /metrics
+#                  port: metrics
+#                initialDelaySeconds: 10
+#                periodSeconds: 30
+#              readinessProbe:
+#                httpGet:
+#                  path: /metrics
+#                  port: metrics
+#                initialDelaySeconds: 5
+#                periodSeconds: 15
+#              env:
+#                - name: STREAMER_KAFKA_BROKERS
+#                  valueFrom:
+#                    secretKeyRef:
+#                      name: ${MSK_SECRET_NAME}
+#                      key: bootstrap_brokers_sasl_scram
+#                - name: STREAMER_KAFKA_CLIENT_ID
+#                  valueFrom:
+#                    fieldRef:
+#                      fieldPath: metadata.name
+#                - name: STREAMER_KAFKA_TLS
+#                  value: ${STREAMER_KAFKA_TLS}
+#                - name: STREAMER_KAFKA_SASL_ENABLED
+#                  value: ${STREAMER_KAFKA_SASL_ENABLED}
+#                - name: STREAMER_KAFKA_SASL_USERNAME
+#                  valueFrom:
+#                    secretKeyRef:
+#                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+#                      key: username
+#                - name: STREAMER_KAFKA_SASL_PASSWORD
+#                  valueFrom:
+#                    secretKeyRef:
+#                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+#                      key: password
+#                - name: STREAMER_ELASTIC_HOST
+#                  valueFrom:
+#                    secretKeyRef:
+#                      name: ${ES_SECRET_NAME}
+#                      key: endpoint
+#                - name: STREAMER_ELASTIC_USERNAME
+#                  valueFrom:
+#                    secretKeyRef:
+#                      name: ${ES_CREDENTIALS_SECRET_NAME}
+#                      key: master_user_name
+#                - name: STREAMER_ELASTIC_PASSWORD
+#                  valueFrom:
+#                    secretKeyRef:
+#                      name: ${ES_CREDENTIALS_SECRET_NAME}
+#                      key: master_user_password
+#                - name: STREAMER_ELASTIC_SSL_INSECURE
+#                  value: "false"
+#                - name: STREAMER_ELASTIC_INDEXES
+#                  value: ${STREAMER_ELASTIC_INDEXES}
+#                - name: STREAMER_ROUTER_INPUT_TOPIC
+#                  value: ${STREAMER_ROUTER_INPUT_TOPIC}
+#                - name: STREAMER_LOG_FORMAT
+#                  value: ${STREAMER_LOG_FORMAT}
+#                - name: STREAMER_LOG_LEVEL
+#                  value: ${STREAMER_LOG_LEVEL}
+#                - name: STREAMER_METRICS_PORT
+#                  value: ${STREAMER_METRICS_PORT}
+#              resources:
+#                requests:
+#                  cpu: 100m
+#                  memory: 128Mi
+#                limits:
+#                  cpu: 500m
+#                  memory: 256Mi
