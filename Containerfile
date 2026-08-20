@@ -12,7 +12,9 @@ COPY . .
 
 RUN GOCACHE=/gocache CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /streamer main.go
 
-FROM registry.access.redhat.com/ubi9/ubi-micro
+FROM registry.access.redhat.com/ubi9/ubi-minimal
+
+RUN microdnf install -y ca-certificates && microdnf clean all
 
 WORKDIR /app
 
