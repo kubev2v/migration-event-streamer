@@ -58,7 +58,7 @@ jobs:
         run: |
           podman pull docker.io/library/postgres:17
           podman pull docker.io/apache/kafka:4.3.1
-          podman pull docker.io/library/elasticsearch:8.7.1
+          podman pull docker.io/opensearchproject/opensearch:2.19.6
 
       - name: Run e2e tests
         run: |

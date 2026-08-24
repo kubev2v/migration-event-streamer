@@ -122,13 +122,14 @@ func (c *ContainerInfraManager) CreateKafkaTopics() error {
 }
 
 func (c *ContainerInfraManager) StartElasticsearch() error {
-	zap.S().Info("Starting Elasticsearch...")
+	zap.S().Info("Starting OpenSearch...")
 	_, err := c.runner.StartContainer(
 		NewContainerConfig(esContainerName, esImage).
 			WithPort(esPort, esPort).
 			WithEnvVar("discovery.type", "single-node").
-			WithEnvVar("xpack.security.enabled", "false").
-			WithEnvVar("ES_JAVA_OPTS", "-Xms512m -Xmx512m"),
+			WithEnvVar("plugins.security.disabled", "true").
+			WithEnvVar("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m").
+			WithEnvVar("DISABLE_INSTALL_DEMO_CONFIG", "true"),
 	)
 	if err != nil {
 		return err
@@ -142,7 +143,7 @@ func (c *ContainerInfraManager) StopElasticsearch() error {
 }
 
 func (c *ContainerInfraManager) waitForElasticsearch(timeout time.Duration) error {
-	zap.S().Info("Waiting for Elasticsearch to be ready...")
+	zap.S().Info("Waiting for OpenSearch to be ready...")
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{Timeout: 2 * time.Second}
 	for time.Now().Before(deadline) {
@@ -150,13 +151,13 @@ func (c *ContainerInfraManager) waitForElasticsearch(timeout time.Duration) erro
 		if err == nil {
 			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
-				zap.S().Info("Elasticsearch is ready")
+				zap.S().Info("OpenSearch is ready")
 				return nil
 			}
 		}
 		time.Sleep(2 * time.Second)
 	}
-	return fmt.Errorf("elasticsearch did not become ready within %v", timeout)
+	return fmt.Errorf("opensearch did not become ready within %v", timeout)
 }
 
 func (c *ContainerInfraManager) StartPlanner() error {
