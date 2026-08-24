@@ -1,20 +1,21 @@
 package elastic
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/elastic/elastic-transport-go/v8/elastictransport"
-	"io"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
-	elastic "github.com/elastic/go-elasticsearch/v9"
 	"github.com/kubev2v/migration-event-streamer/internal/config"
+	opensearch "github.com/opensearch-project/opensearch-go/v4"
+	opensearchapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	"go.uber.org/zap"
 )
 
-func NewElasticsearchClient(config config.ElasticSearch) (*elastic.Client, error) {
+func NewElasticsearchClient(config config.ElasticSearch) (*opensearchapi.Client, error) {
 	host := config.Host
 	if host != "" && !strings.HasPrefix(host, "http://") && !strings.HasPrefix(host, "https://") {
 		host = "https://" + host
@@ -23,37 +24,41 @@ func NewElasticsearchClient(config config.ElasticSearch) (*elastic.Client, error
 		host,
 	}
 
-	client, err := elastic.New(
-		elastic.WithAddresses(addresses...),
-		elastic.WithBasicAuth(config.Username, config.Password),
-		elastic.WithTransportOptions(
-			elastictransport.WithTransport(&http.Transport{
-				MaxIdleConnsPerHost:   10,
-				ResponseHeaderTimeout: config.GetResponseTimeout(),
-				DialContext: (&net.Dialer{
-					Timeout: config.GetDialTimeout(),
-				}).DialContext,
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: config.SSLInsecureSkipVerify,
-					MinVersion:         tls.VersionTLS12,
-				},
-			}),
-		),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize elasticsearch client %w", err)
+	// Clone DefaultTransport to preserve connection pooling, HTTP/2, and timeouts
+	tp := http.DefaultTransport.(*http.Transport).Clone()
+	tp.MaxIdleConnsPerHost = 10
+	tp.ResponseHeaderTimeout = config.GetResponseTimeout()
+	tp.DialContext = (&net.Dialer{
+		Timeout: config.GetDialTimeout(),
+	}).DialContext
+	tp.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: config.SSLInsecureSkipVerify,
+		MinVersion:         tls.VersionTLS12,
 	}
 
-	resp, err := client.Info()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get info from elasticsearch server: %w", err)
+	cfg := opensearchapi.Config{
+		Client: opensearch.Config{
+			Addresses: addresses,
+			Username:  config.Username,
+			Password:  config.Password,
+			Transport: tp,
+		},
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
 
-	data, _ := io.ReadAll(resp.Body)
-	zap.S().Infof("connected to elastic search: %s", string(data))
+	client, err := opensearchapi.NewClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize opensearch client %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	resp, err := client.Info(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get info from opensearch server: %w", err)
+	}
+
+	zap.S().Infof("connected to opensearch: version=%s, cluster=%s", resp.Version.Number, resp.ClusterName)
 
 	return client, nil
 }

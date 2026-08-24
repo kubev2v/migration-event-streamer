@@ -9,8 +9,8 @@ const (
 	kafkaImage         = "docker.io/apache/kafka:4.3.1"
 	kafkaPort          = 9092
 
-	esContainerName = "e2e-streamer-test-elasticsearch"
-	esImage         = "docker.io/library/elasticsearch:8.7.1"
+	esContainerName = "e2e-streamer-test-opensearch"
+	esImage         = "docker.io/opensearchproject/opensearch:2.19.6"
 	esPort          = 9200
 
 	plannerContainerName = "e2e-streamer-test-planner"

@@ -53,7 +53,8 @@ func NewRunCommand(cfg *config.Configuration, version, gitCommit string) *cobra.
 
 			envTopic := namespace.Topic()
 
-			dt, err := createDatastore(cfg, routerInputTopic, envTopic)
+			ctx := context.Background()
+			dt, err := createDatastore(ctx, cfg, routerInputTopic, envTopic)
 			if err != nil {
 				return err
 			}
@@ -139,8 +140,8 @@ func registerElasticFlags(flagSet *pflag.FlagSet, cfg *config.Configuration, ind
 	flagSet.StringVar(&cfg.ElasticSearch.DialTimeout, "elastic-dial-timeout", cfg.ElasticSearch.DialTimeout, "Elasticsearch dial timeout")
 }
 
-func createDatastore(cfg *config.Configuration, routerInputTopic, envTopic string) (*datastore.Datastore, error) {
-	dt := datastore.NewDatastore().WithElasticRepository(cfg.ElasticSearch)
+func createDatastore(ctx context.Context, cfg *config.Configuration, routerInputTopic, envTopic string) (*datastore.Datastore, error) {
+	dt := datastore.NewDatastore().WithElasticRepository(ctx, cfg.ElasticSearch)
 
 	dt.WithKafkaConsumer("router", cfg.Kafka, routerInputTopic, fmt.Sprintf("consumer-group-%s", routerInputTopic))
 	dt.WithKafkaConsumer("dispatcher", cfg.Kafka, envTopic, fmt.Sprintf("consumer-group-%s", envTopic))

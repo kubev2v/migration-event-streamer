@@ -27,7 +27,7 @@ func NewDatastore() *Datastore {
 	}
 }
 
-func (d *Datastore) WithElasticRepository(esConfig config.ElasticSearch) *Datastore {
+func (d *Datastore) WithElasticRepository(ctx context.Context, esConfig config.ElasticSearch) *Datastore {
 	d.buildFns = append(d.buildFns, func() error {
 		if d.elasticRepo != nil {
 			return nil
@@ -36,7 +36,7 @@ func (d *Datastore) WithElasticRepository(esConfig config.ElasticSearch) *Datast
 		if err != nil {
 			return err
 		}
-		if err := d.createIndexes(elasticRepo, esConfig.Indexes); err != nil {
+		if err := d.createIndexes(ctx, elasticRepo, esConfig.Indexes); err != nil {
 			return fmt.Errorf("failed to create indexes: %v", err)
 		}
 		d.elasticRepo = elasticRepo
@@ -123,9 +123,9 @@ func (d *Datastore) MustHaveProducer(name string) *plannerEvents.KafkaProducer {
 	return p
 }
 
-func (d *Datastore) createIndexes(es *elastic.ElasticRepository, indexes []string) error {
+func (d *Datastore) createIndexes(ctx context.Context, es *elastic.ElasticRepository, indexes []string) error {
 	for _, idx := range indexes {
-		if err := es.CreateIndex(idx); err != nil {
+		if err := es.CreateIndex(ctx, idx); err != nil {
 			return err
 		}
 	}

@@ -5,8 +5,6 @@ go 1.26.0
 require (
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/creasty/defaults v1.7.0
-	github.com/elastic/elastic-transport-go/v8 v8.9.0
-	github.com/elastic/go-elasticsearch/v9 v9.5.0
 	github.com/fatih/color v1.19.0
 	github.com/go-extras/cobraflags v0.0.0-20260116100222-f76efc9500d4
 	github.com/google/uuid v1.6.0
@@ -15,6 +13,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
 	github.com/opencontainers/runtime-spec v1.3.0
+	github.com/opensearch-project/opensearch-go/v4 v4.7.3
 	github.com/prometheus/client_golang v1.24.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10

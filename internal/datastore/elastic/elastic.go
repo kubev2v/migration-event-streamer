@@ -1,11 +1,12 @@
 package elastic
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/namespace"
+	opensearchapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 )
 
 type ElasticRepository struct {
@@ -35,24 +36,25 @@ func (e *ElasticRepository) Assessment() AssessmentWriter           { return e.a
 func (e *ElasticRepository) UserAction() UserActionWriter           { return e.userAction }
 func (e *ElasticRepository) PartnerCustomer() PartnerCustomerWriter { return e.partnerCustomer }
 
-func (e *ElasticRepository) CreateIndex(name string) error {
+func (e *ElasticRepository) CreateIndex(ctx context.Context, name string) error {
 	fullName := fmt.Sprintf("%s_%s", e.base.indexPrefix, name)
-	res, err := e.base.client.Indices.Exists([]string{fullName})
-	if err != nil {
-		return fmt.Errorf("failed to check if index %s exists: %w", name, err)
-	}
-	if res.StatusCode == http.StatusOK {
-		_ = res.Body.Close()
+
+	// Check if index exists
+	_, err := e.base.client.Indices.Exists(ctx, opensearchapi.IndicesExistsReq{
+		Indices: []string{fullName},
+	})
+	if err == nil {
+		// Index exists
 		return nil
 	}
 
-	res, err = e.base.client.Indices.Create(fullName)
+	// Create index
+	_, err = e.base.client.Indices.Create(ctx, opensearchapi.IndicesCreateReq{
+		Index: fullName,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create index %s: %w", name, err)
 	}
-	if res.IsError() {
-		return fmt.Errorf("failed to create index %s: %w", name, err)
-	}
-	_ = res.Body.Close()
+
 	return nil
 }

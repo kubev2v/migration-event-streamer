@@ -5,13 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 
-	"github.com/elastic/go-elasticsearch/v9/esapi"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	opensearchapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	"go.uber.org/zap"
-
-	elastic "github.com/elastic/go-elasticsearch/v9"
 )
 
 type Writer interface {
@@ -40,28 +37,22 @@ type PartnerCustomerWriter interface {
 }
 
 type baseWriter struct {
-	client      *elastic.Client
+	client      *opensearchapi.Client
 	indexPrefix string
 }
 
 func (b *baseWriter) write(ctx context.Context, index, id string, data []byte) error {
-	req := esapi.IndexRequest{
+	req := opensearchapi.IndexReq{
 		Index:      fmt.Sprintf("%s_%s", b.indexPrefix, index),
 		DocumentID: id,
 		Body:       bytes.NewReader(data),
 	}
-	res, err := req.Do(ctx, b.client)
+	res, err := b.client.Index(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to insert document %s: %w", id, err)
 	}
-	defer func() { _ = res.Body.Close() }()
 
-	if res.IsError() {
-		bodyBytes, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("failed to index document %s: %s - %s", id, res.Status(), string(bodyBytes))
-	}
-
-	zap.S().Infow("successful write", "index", index, "document_id", id, "method", "overwrite")
+	zap.S().Infow("successful write", "index", index, "document_id", id, "method", "overwrite", "result", res.Result)
 	return nil
 }
 
@@ -76,24 +67,18 @@ func (b *baseWriter) upsert(ctx context.Context, index, id string, data []byte) 
 		return fmt.Errorf("failed to marshal upsert body: %w", err)
 	}
 
-	req := esapi.UpdateRequest{
+	req := opensearchapi.UpdateReq{
 		Index:      fmt.Sprintf("%s_%s", b.indexPrefix, index),
 		DocumentID: id,
 		Body:       bytes.NewReader(bodyJSON),
 	}
 
-	res, err := req.Do(ctx, b.client)
+	res, err := b.client.Update(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to upsert document %s: %w", id, err)
 	}
-	defer func() { _ = res.Body.Close() }()
 
-	if res.IsError() {
-		bodyBytes, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("failed to upsert document %s: %s - %s", id, res.Status(), string(bodyBytes))
-	}
-
-	zap.S().Infow("successful write", "index", index, "document_id", id, "method", "upsert")
+	zap.S().Infow("successful write", "index", index, "document_id", id, "method", "upsert", "result", res.Result)
 	return nil
 }
 
@@ -120,47 +105,28 @@ func (b *baseWriter) updateByQuery(ctx context.Context, req UpdateByQueryRequest
 		return nil, fmt.Errorf("failed to marshal query body: %w", err)
 	}
 
-	updateReq := esapi.UpdateByQueryRequest{
-		Index:     []string{indexName},
-		Body:      bytes.NewReader(bodyJSON),
-		Conflicts: "proceed",
+	updateReq := opensearchapi.UpdateByQueryReq{
+		Indices: []string{indexName},
+		Body:    bytes.NewReader(bodyJSON),
+		Params: opensearchapi.UpdateByQueryParams{
+			Conflicts: "proceed",
+		},
 	}
 
-	res, err := updateReq.Do(ctx, b.client)
+	res, err := b.client.UpdateByQuery(ctx, updateReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute update by query: %w", err)
 	}
-	defer func() { _ = res.Body.Close() }()
 
-	if res.IsError() {
-		bodyBytes, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("update by query failed: %s - %s", res.Status(), string(bodyBytes))
-	}
-
-	var response struct {
-		Total    int64 `json:"total"`
-		Updated  int64 `json:"updated"`
-		Failures []struct {
-			Index string `json:"index"`
-			ID    string `json:"id"`
-			Cause struct {
-				Reason string `json:"reason"`
-			} `json:"cause"`
-		} `json:"failures"`
-	}
-
-	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
+	// Response is already parsed - use fields directly
 	result := &UpdateByQueryResult{
-		Total:    response.Total,
-		Updated:  response.Updated,
-		Failed:   int64(len(response.Failures)),
-		Failures: make([]UpdateFailure, 0, len(response.Failures)),
+		Total:    int64(res.Total),
+		Updated:  int64(res.Updated),
+		Failed:   int64(len(res.Failures)),
+		Failures: make([]UpdateFailure, 0, len(res.Failures)),
 	}
 
-	for _, f := range response.Failures {
+	for _, f := range res.Failures {
 		result.Failures = append(result.Failures, UpdateFailure{
 			Index:      f.Index,
 			DocumentID: f.ID,
