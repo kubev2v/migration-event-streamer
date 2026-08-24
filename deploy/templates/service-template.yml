@@ -137,11 +137,11 @@ objects:
                       key: password
               resources:
                 requests:
-                  cpu: 10m
-                  memory: 32Mi
+                  cpu: 100m
+                  memory: 256Mi
                 limits:
-                  cpu: 50m
-                  memory: 64Mi
+                  cpu: 500m
+                  memory: 512Mi
 #            - name: migration-event-streamer
 #              image: ${IMAGE_NAME}:${IMAGE_TAG}
 #              imagePullPolicy: Always
