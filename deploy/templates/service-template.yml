@@ -93,7 +93,26 @@ objects:
             - name: msk-debug
               image: quay.io/redhat-services-prod/app-sre-tenant/container-images-master/msk-debug-container-master:3.7-1
               imagePullPolicy: Always
-              command: ["/bin/sh", "-c", "sleep infinity"]
+              command: [ "/bin/bash", "-c" ]
+              args:
+                - |
+                  # Ensure command tracing is OFF so secrets aren't logged
+                  set +x
+                  
+                  # Set SASL/JAAS credentials strictly in memory via JVM options
+                  export KAFKA_OPTS="-Djava.security.auth.login.config=/dev/null"
+                  
+                  kafka-acls.sh \
+                    --bootstrap-server "${MSK_BOOTSTRAP_SERVERS}" \
+                    --command-config <(echo -e "security.protocol=SASL_SSL\nsasl.mechanism=SCRAM-SHA-512\nsasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"${MSK_USER}\" password=\"${MSK_PASSWORD}\";") \
+                    --add \
+                    --allow-principal User:"${MSK_USER}" \
+                    --operation ALL --cluster \
+                    --operation ALL --topic '*' \
+                    --operation ALL --group '*'
+                  
+                  echo "ACLs applied successfully!"
+                  sleep infinity
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: false
@@ -109,15 +128,13 @@ objects:
                 - name: MSK_USER
                   valueFrom:
                     secretKeyRef:
-                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+                      name: ${MSK_ADMIN_CREDENTIALS_SECRET_NAME}
                       key: username
                 - name: MSK_PASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+                      name: ${MSK_ADMIN_CREDENTIALS_SECRET_NAME}
                       key: password
-                - name: MSK_CONFIG
-                  value: "/client.properties"
               resources:
                 requests:
                   cpu: 10m
