@@ -28,14 +28,14 @@ func EnsureTopic(brokers []string, opts []kgo.Opt, topic string, partitions int3
 
 	resp, err := adm.CreateTopic(ctx, partitions, replicationFactor, nil, topic)
 	if err != nil {
+		if errors.Is(err, kerr.TopicAlreadyExists) {
+			zap.S().Infow("topic already exists", "topic", topic)
+			return nil
+		}
 		return fmt.Errorf("failed to create topic %s: %w", topic, err)
 	}
 
 	if resp.Err != nil {
-		if errors.Is(resp.Err, kerr.TopicAlreadyExists) {
-			zap.S().Infow("topic already exists", "topic", topic)
-			return nil
-		}
 		return fmt.Errorf("failed to create topic %s: %w", topic, resp.Err)
 	}
 
