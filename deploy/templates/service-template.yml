@@ -78,6 +78,11 @@ objects:
                     secretKeyRef:
                       name: ${MSK_ADMIN_CREDENTIALS_SECRET_NAME}
                       key: password
+                - name: STREAMER_ACL_PRINCIPAL
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${MSK_CREDENTIALS_SECRET_NAME}
+                      key: username
               resources:
                 requests:
                   cpu: 50m
