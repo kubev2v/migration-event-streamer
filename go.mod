@@ -133,7 +133,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.11.1 // indirect
 	github.com/sigstore/fulcio v1.8.7 // indirect
-	github.com/sigstore/protobuf-specs v0.5.1 // indirect
+	github.com/sigstore/protobuf-specs v0.5.2 // indirect
 	github.com/sigstore/sigstore v1.10.9 // indirect
 	github.com/sirupsen/logrus v1.10.1 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
