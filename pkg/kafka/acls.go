@@ -8,10 +8,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// GrantConsumerACLs allows the given principal to consume from the provided
-// topics and consumer groups. It grants Read and Describe on each topic and
-// each group, which is what a franz-go consumer needs to fetch records and
-// join/commit within its group.
+// GrantConsumerACLs allows the given principal to consume from and produce to
+// the provided topics and consumer groups. It grants Read, Write, and Describe
+// on each topic, plus Read and Describe on each group, which is what a franz-go
+// client needs to produce records and consume/commit within its group.
 //
 // The principal is a Kafka principal such as the SASL/SCRAM username; a bare
 // username is automatically prefixed with "User:". Creating an ACL that already
@@ -27,7 +27,7 @@ func GrantConsumerACLs(ctx context.Context, adm *kadm.Client, principal string, 
 	b := kadm.NewACLs().
 		Allow(principal).
 		AllowHosts("*").
-		Operations(kadm.OpRead, kadm.OpDescribe).
+		Operations(kadm.OpRead, kadm.OpWrite, kadm.OpDescribe).
 		ResourcePatternType(kadm.ACLPatternLiteral)
 	b.PrefixUser()
 
