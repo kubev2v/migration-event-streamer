@@ -11,7 +11,7 @@ import (
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/uuid"
 	"github.com/kubev2v/migration-event-streamer/internal/logger"
-	plannerEvents "github.com/kubev2v/migration-planner/pkg/events"
+	plannerEvents "github.com/kubev2v/migration-planner/pkg/events/kafka"
 	"go.uber.org/zap"
 )
 
