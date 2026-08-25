@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -113,8 +114,18 @@ func (c *ContainerInfraManager) waitForKafka(timeout time.Duration) error {
 func (c *ContainerInfraManager) CreateKafkaTopics() error {
 	zap.S().Info("Creating Kafka topics...")
 	brokers := []string{fmt.Sprintf("localhost:%d", kafkaPort)}
+
+	adm, err := pkgkafka.NewAdminClient(brokers, nil)
+	if err != nil {
+		return err
+	}
+	defer adm.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	for _, topic := range kafkaTopics {
-		if err := pkgkafka.EnsureTopic(brokers, nil, topic, 1, 1); err != nil {
+		if err := pkgkafka.EnsureTopic(ctx, adm, topic, 1, 1); err != nil {
 			return fmt.Errorf("failed to create topic %s: %w", topic, err)
 		}
 	}

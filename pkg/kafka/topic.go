@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kerr"
@@ -12,20 +11,21 @@ import (
 	"go.uber.org/zap"
 )
 
-func EnsureTopic(brokers []string, opts []kgo.Opt, topic string, partitions int32, replicationFactor int16) error {
+// NewAdminClient builds a kadm admin client against the given brokers. The
+// caller owns the returned client and must Close it, which also closes the
+// underlying kgo client.
+func NewAdminClient(brokers []string, opts []kgo.Opt) (*kadm.Client, error) {
 	clientOpts := append([]kgo.Opt{kgo.SeedBrokers(brokers...)}, opts...)
-	cl, err := kgo.NewClient(clientOpts...)
+	adm, err := kadm.NewOptClient(clientOpts...)
 	if err != nil {
-		return fmt.Errorf("failed to create kafka admin client: %w", err)
+		return nil, fmt.Errorf("failed to create kafka admin client: %w", err)
 	}
-	defer cl.Close()
+	return adm, nil
+}
 
-	adm := kadm.NewClient(cl)
-	defer adm.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
+// EnsureTopic creates the topic if it does not already exist. It is idempotent:
+// an existing topic is treated as success.
+func EnsureTopic(ctx context.Context, adm *kadm.Client, topic string, partitions int32, replicationFactor int16) error {
 	resp, err := adm.CreateTopic(ctx, partitions, replicationFactor, nil, topic)
 	if err != nil {
 		if errors.Is(err, kerr.TopicAlreadyExists) {
