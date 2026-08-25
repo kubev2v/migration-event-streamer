@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
-	plannerEvents "github.com/kubev2v/migration-planner/pkg/events"
+	plannerEvents "github.com/kubev2v/migration-planner/pkg/events/kafka"
 	"go.uber.org/zap"
 )
 

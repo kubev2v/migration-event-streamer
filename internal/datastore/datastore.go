@@ -7,7 +7,7 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/kafka"
-	plannerEvents "github.com/kubev2v/migration-planner/pkg/events"
+	plannerEvents "github.com/kubev2v/migration-planner/pkg/events/kafka"
 	"go.uber.org/zap"
 )
 
