@@ -61,7 +61,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
-	github.com/fsouza/go-dockerclient v1.13.2 // indirect
+	github.com/fsouza/go-dockerclient v1.13.3 // indirect
 	github.com/getkin/kin-openapi v0.147.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
