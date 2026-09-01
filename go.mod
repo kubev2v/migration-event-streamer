@@ -9,7 +9,7 @@ require (
 	github.com/go-extras/cobraflags v0.0.0-20260116100222-f76efc9500d4
 	github.com/google/uuid v1.6.0
 	github.com/jzelinskie/cobrautil/v2 v2.0.0-20260331224425-513c88b62ffe
-	github.com/kubev2v/migration-planner v0.21.0
+	github.com/kubev2v/migration-planner v0.22.0
 	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
 	github.com/opencontainers/runtime-spec v1.3.0
