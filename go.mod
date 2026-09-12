@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jzelinskie/cobrautil/v2 v2.0.0-20260331224425-513c88b62ffe
 	github.com/kubev2v/migration-planner v0.23.0
-	github.com/onsi/ginkgo/v2 v2.32.1
+	github.com/onsi/ginkgo/v2 v2.32.2
 	github.com/onsi/gomega v1.43.0
 	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/opensearch-project/opensearch-go/v4 v4.7.3
