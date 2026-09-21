@@ -21,7 +21,7 @@ require (
 	github.com/twmb/franz-go/pkg/kadm v1.18.0
 	github.com/twmb/franz-go/plugin/kprom v1.5.0
 	go.podman.io/common v0.69.2
-	go.podman.io/podman/v6 v6.1.1
+	go.podman.io/podman/v6 v6.1.2
 	go.uber.org/zap v1.28.0
 )
 
