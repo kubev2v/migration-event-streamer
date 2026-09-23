@@ -10,6 +10,7 @@
   "packageRules": [
     {
       "description": "Automerge non-major updates",
+      "matchUpdateTypes": ["*"],
       "automerge": true
     }
   ]
