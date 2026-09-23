@@ -114,9 +114,9 @@ func NewTimeEstimatedResult(username, assessmentID string, timestamp time.Time) 
 	}
 }
 
-func NewOVADownloadedResult(username, sourceID string, timestamp time.Time) OVADownloadedResult {
+func NewOVADownloadedResult(username, sourceID, DownloadURLID string, timestamp time.Time) OVADownloadedResult {
 	return OVADownloadedResult{
-		ID:         uuid.New().String(),
+		ID:         DownloadURLID,
 		ActionType: "ova_downloaded",
 		Username:   username,
 		SourceID:   sourceID,

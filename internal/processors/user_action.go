@@ -133,6 +133,7 @@ func OVADownloadedProcessor(_ context.Context, event plannerEvents.UserActionEve
 	return entity.NewOVADownloadedResult(
 		action.Username,
 		data.SourceID,
+		data.DownloadURLID,
 		action.Timestamp,
 	), nil
 }
