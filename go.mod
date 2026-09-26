@@ -8,7 +8,7 @@ require (
 	github.com/fatih/color v1.19.0
 	github.com/go-extras/cobraflags v0.0.0-20260116100222-f76efc9500d4
 	github.com/google/uuid v1.6.0
-	github.com/jzelinskie/cobrautil/v2 v2.0.0-20260331224425-513c88b62ffe
+	github.com/jzelinskie/cobrautil/v2 v2.0.0-20260922163232-4fb24ed00480
 	github.com/kubev2v/migration-planner v0.18.1-0.20260923151920-9d24aec8369d
 	github.com/onsi/ginkgo/v2 v2.32.2
 	github.com/onsi/gomega v1.43.1
