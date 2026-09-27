@@ -81,6 +81,7 @@ COVERAGE_HTML := $(COVERAGE_DIR)/coverage.html
 
 test: $(GINKGO)
 	@echo "Running Unit tests..."
+	@command -v podman >/dev/null || { echo "Podman is required for the OpenSearch repository test." >&2; exit 1; }
 	@mkdir -p $(COVERAGE_DIR)
 	@$(GINKGO) -v --show-node-events --skip-package=test/e2e --coverprofile=coverage.out --output-dir=$(COVERAGE_DIR) $(UNIT_TEST_PACKAGES)
 	@echo "All Unit tests passed successfully."
