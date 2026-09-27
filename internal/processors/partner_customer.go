@@ -22,6 +22,7 @@ func PartnerCustomerProcessor(_ context.Context, event plannerEvents.PartnerCust
 		pc.CustomerUsername,
 		pc.PartnerID,
 		pc.RequestStatus,
+		pc.PartnerName,
 		pc.AcceptedAt,
 		pc.TerminatedAt,
 		pc.CreatedAt,

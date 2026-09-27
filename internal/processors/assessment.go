@@ -35,6 +35,7 @@ func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.Assessmen
 		inventory.VcenterId,
 	)
 	doc.PartnerID = assessment.PartnerID
+	doc.PartnerName = assessment.PartnerName
 
 	TotalClusters := len(inventory.Clusters)
 	if inventory.Vcenter != nil {

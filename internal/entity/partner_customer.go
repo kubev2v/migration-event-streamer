@@ -12,10 +12,11 @@ type PartnerCustomer struct {
 	TerminatedAt     *string `json:"terminated_at,omitempty"`
 	CreatedAt        string  `json:"created_at"`
 	EventTime        string  `json:"event_time"`
+	PartnerName      string  `json:"partner_name"`
 }
 
 // NewPartnerCustomer creates a new PartnerCustomer entity
-func NewPartnerCustomer(id, customerUsername, partnerID, requestStatus string, acceptedAt, terminatedAt *time.Time, createdAt time.Time) PartnerCustomer {
+func NewPartnerCustomer(id, customerUsername, partnerID, requestStatus, partnerName string, acceptedAt, terminatedAt *time.Time, createdAt time.Time) PartnerCustomer {
 	pc := PartnerCustomer{
 		ID:               id,
 		CustomerUsername: customerUsername,
@@ -23,6 +24,7 @@ func NewPartnerCustomer(id, customerUsername, partnerID, requestStatus string, a
 		RequestStatus:    requestStatus,
 		CreatedAt:        createdAt.Format(time.RFC3339),
 		EventTime:        time.Now().Format(time.RFC3339),
+		PartnerName:      partnerName,
 	}
 
 	if acceptedAt != nil {

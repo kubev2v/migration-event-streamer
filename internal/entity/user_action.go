@@ -12,6 +12,7 @@ type ShareAssessmentResult struct {
 	Username     string `json:"username"`
 	AssessmentID string `json:"assessment_id"`
 	PartnerID    string `json:"partner_id"`
+	PartnerName  string `json:"partner_name"`
 	Timestamp    string `json:"timestamp"`
 }
 
@@ -63,13 +64,14 @@ type VisitedResult struct {
 	Timestamp  string `json:"timestamp"`
 }
 
-func NewShareAssessmentResult(username, assessmentID, partnerID string, timestamp time.Time) ShareAssessmentResult {
+func NewShareAssessmentResult(username, assessmentID, partnerID, partnerName string, timestamp time.Time) ShareAssessmentResult {
 	return ShareAssessmentResult{
 		ID:           uuid.New().String(),
 		ActionType:   "assessment_shared",
 		Username:     username,
 		AssessmentID: assessmentID,
 		PartnerID:    partnerID,
+		PartnerName:  partnerName,
 		Timestamp:    timestamp.Format(time.RFC3339),
 	}
 }

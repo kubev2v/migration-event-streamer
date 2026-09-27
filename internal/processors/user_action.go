@@ -28,6 +28,7 @@ func ShareAssessmentProcessor(_ context.Context, event plannerEvents.UserActionE
 		action.Username,
 		data.AssessmentID,
 		data.PartnerID,
+		data.PartnerName,
 		action.Timestamp,
 	), nil
 }
