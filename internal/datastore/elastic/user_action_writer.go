@@ -13,6 +13,10 @@ type userActionWriter struct {
 	base *baseWriter
 }
 
+func newUserActionWriter(base *baseWriter) *userActionWriter {
+	return &userActionWriter{base: base}
+}
+
 func (w *userActionWriter) writeAction(ctx context.Context, id string, data []byte) error {
 	return w.base.write(ctx, entity.UserActionIndex, id, data)
 }

@@ -13,6 +13,10 @@ type assessmentWriter struct {
 	base *baseWriter
 }
 
+func newAssessmentWriter(base *baseWriter) *assessmentWriter {
+	return &assessmentWriter{base: base}
+}
+
 func (w *assessmentWriter) WriteCreated(ctx context.Context, result entity.AssessmentCreatedResult) error {
 	data, err := json.Marshal(result.Assessment)
 	if err != nil {

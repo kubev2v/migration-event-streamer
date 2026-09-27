@@ -41,6 +41,10 @@ type baseWriter struct {
 	indexPrefix string
 }
 
+func newBaseWriter(client *opensearchapi.Client, indexPrefix string) *baseWriter {
+	return &baseWriter{client: client, indexPrefix: indexPrefix}
+}
+
 func (b *baseWriter) write(ctx context.Context, index, id string, data []byte) error {
 	req := opensearchapi.IndexReq{
 		Index:      fmt.Sprintf("%s_%s", b.indexPrefix, index),

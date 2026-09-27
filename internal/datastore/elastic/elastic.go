@@ -22,12 +22,12 @@ func NewElasticRepository(cfg config.ElasticSearch) (*ElasticRepository, error) 
 		return nil, err
 	}
 
-	base := &baseWriter{client: client, indexPrefix: namespace.IndexPrefix()}
+	base := newBaseWriter(client, namespace.IndexPrefix())
 
 	return &ElasticRepository{
-		assessment:      &assessmentWriter{base: base},
-		userAction:      &userActionWriter{base: base},
-		partnerCustomer: &partnerCustomerWriter{base: base},
+		assessment:      newAssessmentWriter(base),
+		userAction:      newUserActionWriter(base),
+		partnerCustomer: newPartnerCustomerWriter(base),
 		base:            base,
 	}, nil
 }
