@@ -12,6 +12,10 @@ type partnerCustomerWriter struct {
 	base *baseWriter
 }
 
+func newPartnerCustomerWriter(base *baseWriter) *partnerCustomerWriter {
+	return &partnerCustomerWriter{base: base}
+}
+
 func (w *partnerCustomerWriter) Write(ctx context.Context, pc entity.PartnerCustomer) error {
 	data, err := json.Marshal(pc)
 	if err != nil {
