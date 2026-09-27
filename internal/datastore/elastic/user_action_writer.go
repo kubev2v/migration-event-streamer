@@ -18,7 +18,10 @@ func (w *userActionWriter) writeAction(ctx context.Context, id string, data []by
 }
 
 func (w *userActionWriter) WriteShareAssessment(ctx context.Context, result entity.ShareAssessmentResult) error {
-	updates := map[string]any{"partner_id": result.PartnerID}
+	updates := map[string]any{
+		"partner_id":   result.PartnerID,
+		"partner_name": result.PartnerName,
+	}
 	for _, index := range []string{entity.AssessmentIndex, entity.OSIndex, entity.DatastoreIndex} {
 		r, err := w.base.updateByQuery(ctx, UpdateByQueryRequest{
 			Index:      index,
@@ -41,7 +44,10 @@ func (w *userActionWriter) WriteShareAssessment(ctx context.Context, result enti
 }
 
 func (w *userActionWriter) WriteUnshareAssessment(ctx context.Context, result entity.UnshareAssessmentResult) error {
-	updates := map[string]any{"partner_id": nil}
+	updates := map[string]any{
+		"partner_id":   nil,
+		"partner_name": nil,
+	}
 	for _, index := range []string{entity.AssessmentIndex, entity.OSIndex, entity.DatastoreIndex} {
 		r, err := w.base.updateByQuery(ctx, UpdateByQueryRequest{
 			Index:      index,

@@ -33,6 +33,7 @@ type Assessment struct {
 	Username                    string  `json:"username"`
 	SourceType                  string  `json:"source_type"`
 	PartnerID                   *string `json:"partner_id,omitempty"`
+	PartnerName                 *string `json:"partner_name"`
 	Status                      string  `json:"status"`
 	CreatedAt                   string  `json:"created_at"`
 	UpdatedAt                   *string `json:"updated_at,omitempty"`
