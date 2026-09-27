@@ -69,6 +69,14 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      - name: Pull OpenSearch image
+        run: podman pull docker.io/opensearchproject/opensearch:2.19.6
+
       - name: Run unit tests
         run: make test
 
