@@ -134,7 +134,7 @@ require (
 	github.com/secure-systems-lab/go-securesystemslib v0.11.1 // indirect
 	github.com/sigstore/fulcio v1.8.7 // indirect
 	github.com/sigstore/protobuf-specs v0.5.2 // indirect
-	github.com/sigstore/sigstore v1.10.9 // indirect
+	github.com/sigstore/sigstore v1.10.11 // indirect
 	github.com/sirupsen/logrus v1.10.2 // indirect
 	github.com/skeema/knownhosts v1.3.3 // indirect
 	github.com/smallstep/pkcs7 v0.2.3 // indirect
@@ -144,7 +144,7 @@ require (
 	github.com/spf13/viper v1.21.0 // indirect
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/sylabs/sif/v2 v2.24.1 // indirect
+	github.com/sylabs/sif/v2 v2.24.2 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.14.0 // indirect
