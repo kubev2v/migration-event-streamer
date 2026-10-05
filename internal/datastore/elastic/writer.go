@@ -30,6 +30,7 @@ type UserActionWriter interface {
 	WriteTimeEstimated(ctx context.Context, result entity.TimeEstimatedResult) error
 	WriteOVADownloaded(ctx context.Context, result entity.OVADownloadedResult) error
 	WriteVisited(ctx context.Context, result entity.VisitedResult) error
+	WriteCostEstimated(ctx context.Context, result entity.CostEstimatedResult) error
 }
 
 type PartnerCustomerWriter interface {

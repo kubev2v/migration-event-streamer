@@ -64,6 +64,19 @@ type VisitedResult struct {
 	Timestamp  string `json:"timestamp"`
 }
 
+type CostEstimatedResult struct {
+	ID                string `json:"-"`
+	ActionType        string `json:"action_type"`
+	Username          string `json:"username,omitempty"`
+	Operation         string `json:"operation"`
+	AssessmentID      string `json:"assessment_id,omitempty"`
+	ClusterID         string `json:"cluster_id,omitempty"`
+	Scope             string `json:"scope,omitempty"`
+	CalculatorVersion string `json:"calculator_version"`
+	OutputFormat      string `json:"output_format"`
+	Timestamp         string `json:"timestamp"`
+}
+
 func NewShareAssessmentResult(username, assessmentID, partnerID, partnerName string, timestamp time.Time) ShareAssessmentResult {
 	return ShareAssessmentResult{
 		ID:           uuid.New().String(),
@@ -133,5 +146,20 @@ func NewVisitedResult(username, orgID string, timestamp time.Time) VisitedResult
 		Username:   username,
 		OrgID:      orgID,
 		Timestamp:  timestamp.Format(time.RFC3339),
+	}
+}
+
+func NewCostEstimatedResult(username, operation, assessmentID, clusterID, scope, calculatorVersion, outputFormat string, timestamp time.Time) CostEstimatedResult {
+	return CostEstimatedResult{
+		ID:                uuid.New().String(),
+		ActionType:        "cost_estimated",
+		Username:          username,
+		Operation:         operation,
+		AssessmentID:      assessmentID,
+		ClusterID:         clusterID,
+		Scope:             scope,
+		CalculatorVersion: calculatorVersion,
+		OutputFormat:      outputFormat,
+		Timestamp:         timestamp.Format(time.RFC3339),
 	}
 }
