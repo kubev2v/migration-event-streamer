@@ -112,3 +112,11 @@ func (w *userActionWriter) WriteVisited(ctx context.Context, result entity.Visit
 	}
 	return w.writeAction(ctx, result.ID, data)
 }
+
+func (w *userActionWriter) WriteCostEstimated(ctx context.Context, result entity.CostEstimatedResult) error {
+	data, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("failed to marshal cost estimated: %w", err)
+	}
+	return w.writeAction(ctx, result.ID, data)
+}

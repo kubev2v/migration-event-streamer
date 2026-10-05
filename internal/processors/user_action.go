@@ -4,11 +4,34 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
 	plannerEvents "github.com/kubev2v/migration-planner/pkg/events/kafka"
 	"go.uber.org/zap"
 )
+
+func CostEstimatedProcessor(_ context.Context, event costEstimationUserActionEvent) (entity.CostEstimatedResult, error) {
+	action := event.UserAction
+	var data costEstimationActionData
+	if err := json.Unmarshal(action.Data, &data); err != nil {
+		return entity.CostEstimatedResult{}, fmt.Errorf("failed to unmarshal cost estimation data: %w", err)
+	}
+
+	zap.S().Infow("processing cost estimation event",
+		"operation", data.Operation,
+		"assessment_id", data.AssessmentID,
+		"cluster_id", data.ClusterID)
+
+	return entity.NewCostEstimatedResult(
+		action.Username,
+		data.Operation,
+		data.AssessmentID,
+		data.ClusterID,
+		data.Scope,
+		data.CalculatorVersion,
+		data.OutputFormat,
+		action.Timestamp,
+	), nil
+}
 
 func ShareAssessmentProcessor(_ context.Context, event plannerEvents.UserActionEventPayload) (entity.ShareAssessmentResult, error) {
 	action := event.UserAction

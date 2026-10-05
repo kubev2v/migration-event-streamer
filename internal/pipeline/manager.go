@@ -25,6 +25,7 @@ const (
 	UserActionTimeEstimated   = "user_action.time_estimated"
 	UserActionOVADownloaded   = "user_action.ova_downloaded"
 	UserActionVisited         = "user_action.visited"
+	UserActionCostEstimated   = "user_action.cost_estimated"
 )
 
 type Consumer interface {
@@ -92,6 +93,7 @@ func (m *Manager) InitAllPipelines(w elastic.Writer) {
 	registerPipeline(m.dispatcher, m.errorCh, UserActionComplexity, processors.ComplexityEstimatedProcessor, w.UserAction().WriteComplexityEstimated)
 	registerPipeline(m.dispatcher, m.errorCh, UserActionTimeEstimated, processors.TimeEstimatedProcessor, w.UserAction().WriteTimeEstimated)
 	registerPipeline(m.dispatcher, m.errorCh, UserActionOVADownloaded, processors.OVADownloadedProcessor, w.UserAction().WriteOVADownloaded)
+	registerPipeline(m.dispatcher, m.errorCh, UserActionCostEstimated, processors.CostEstimatedProcessor, w.UserAction().WriteCostEstimated)
 }
 
 func registerPipeline[T any, S any](d *Dispatcher, errors chan<- entity.PipelineError, name string, process Processor[T, S], write WriteFn[S]) {
