@@ -1,6 +1,6 @@
 module github.com/kubev2v/migration-event-streamer
 
-go 1.26.3
+go 1.26.8
 
 require (
 	github.com/cloudevents/sdk-go/v2 v2.16.2
@@ -94,7 +94,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.52 // indirect
 	github.com/miekg/pkcs11 v1.1.2 // indirect
 	github.com/mistifyio/go-zfs/v4 v4.0.0 // indirect
-	github.com/moby/buildkit v0.33.0 // indirect
+	github.com/moby/buildkit v0.33.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.3.3 // indirect
 	github.com/moby/moby/api v1.56.1 // indirect
