@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
@@ -36,6 +37,8 @@ func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.Assessmen
 	)
 	doc.PartnerID = assessment.PartnerID
 	doc.PartnerName = assessment.PartnerName
+	orgName := normalizeAssessmentOrgName(assessment.OrgName)
+	doc.OrgName = orgName
 
 	TotalClusters := len(inventory.Clusters)
 	if inventory.Vcenter != nil {
@@ -50,8 +53,8 @@ func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.Assessmen
 
 	return entity.AssessmentCreatedResult{
 		Assessment: *doc,
-		OSEntries:  buildOSEntries(assessment, inventory),
-		Datastores: buildDatastoreEntries(assessment, inventory),
+		OSEntries:  buildOSEntries(assessment, inventory, orgName),
+		Datastores: buildDatastoreEntries(assessment, inventory, orgName),
 	}, nil
 }
 
@@ -65,7 +68,7 @@ func AssessmentDeletedProcessor(_ context.Context, event plannerEvents.Assessmen
 	}, nil
 }
 
-func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory) []entity.AssessmentOS {
+func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory, orgName string) []entity.AssessmentOS {
 	osCounts := make(map[string]int)
 	if inventory.Vcenter != nil && inventory.Vcenter.Vms.OsInfo != nil {
 		for osType, info := range *inventory.Vcenter.Vms.OsInfo {
@@ -87,6 +90,7 @@ func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.
 		)
 
 		doc.PartnerID = assessment.PartnerID
+		doc.OrgName = orgName
 
 		entries = append(entries, *doc)
 	}
@@ -94,7 +98,7 @@ func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.
 	return entries
 }
 
-func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory) []entity.AssessmentDatastore {
+func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory, orgName string) []entity.AssessmentDatastore {
 	var entries []entity.AssessmentDatastore
 	datastoreIndex := 0
 
@@ -114,6 +118,7 @@ func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1
 			)
 
 			doc.PartnerID = assessment.PartnerID
+			doc.OrgName = orgName
 
 			entries = append(entries, *doc)
 			datastoreIndex++
@@ -121,4 +126,12 @@ func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1
 	}
 
 	return entries
+}
+
+func normalizeAssessmentOrgName(orgName string) string {
+	lowerName := strings.ToLower(orgName)
+	if strings.Contains(lowerName, "redhat") || strings.Contains(lowerName, "red hat") {
+		return "Red Hat"
+	}
+	return orgName
 }
