@@ -1,6 +1,6 @@
 module github.com/kubev2v/migration-event-streamer
 
-go 1.26.3
+go 1.27.0
 
 require (
 	github.com/cloudevents/sdk-go/v2 v2.16.2
@@ -9,7 +9,7 @@ require (
 	github.com/go-extras/cobraflags v0.0.0-20260116100222-f76efc9500d4
 	github.com/google/uuid v1.6.0
 	github.com/jzelinskie/cobrautil/v2 v2.0.0-20260922163232-4fb24ed00480
-	github.com/kubev2v/migration-planner v0.27.0
+	github.com/kubev2v/migration-planner v0.28.1-0.20261018074735-03b39701f847
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	github.com/opencontainers/runtime-spec v1.3.0

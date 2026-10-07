@@ -3,6 +3,9 @@ FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/go-toolset AS builde
 
 USER 0
 
+# Allow the UBI toolchain to download the Go version required by go.mod.
+ENV GOTOOLCHAIN=auto
+
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download

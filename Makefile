@@ -94,7 +94,7 @@ test: $(GINKGO)
 ##################### "make test" support end   ##########################
 
 ##################### "make lint" support start ##########################
-GOLANGCI_LINT_VERSION := v2.10.1
+GOLANGCI_LINT_VERSION := v2.13.0
 GOLANGCI_LINT := $(GOBIN)/golangci-lint
 
 check-golangci-lint-version:
