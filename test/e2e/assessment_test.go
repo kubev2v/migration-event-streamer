@@ -176,6 +176,10 @@ func buildTestInventory() *v1alpha1.Inventory {
 		"windows": {Count: 5, Supported: true},
 		"linux":   {Count: 3, Supported: true},
 	}
+	datastores := []v1alpha1.Datastore{
+		{Type: "VMFS", TotalCapacityGB: 1000, FreeCapacityGB: 500, DiskId: "disk-1", Model: "test-model", ProtocolType: "scsi"},
+		{Type: "NFS", TotalCapacityGB: 2000, FreeCapacityGB: 1500, DiskId: "disk-2", Model: "test-model", ProtocolType: "nfs"},
+	}
 	diskSizeTier := map[string]v1alpha1.DiskSizeTierSummary{
 		"0-10TiB":  {VmCount: 3, TotalSizeTB: 1.5},
 		"10-20TiB": {VmCount: 2, TotalSizeTB: 15.0},
@@ -186,11 +190,8 @@ func buildTestInventory() *v1alpha1.Inventory {
 		Clusters: map[string]v1alpha1.InventoryData{
 			"cluster-1": {
 				Infra: v1alpha1.Infra{
-					TotalHosts: 1,
-					Datastores: []v1alpha1.Datastore{
-						{Type: "VMFS", TotalCapacityGB: 1000, FreeCapacityGB: 500, DiskId: "disk-1", Model: "test-model", ProtocolType: "scsi"},
-						{Type: "NFS", TotalCapacityGB: 2000, FreeCapacityGB: 1500, DiskId: "disk-2", Model: "test-model", ProtocolType: "nfs"},
-					},
+					TotalHosts:      1,
+					Datastores:      datastores,
 					Networks:        []v1alpha1.Network{},
 					HostPowerStates: map[string]int{"poweredOn": 1},
 				},
@@ -225,7 +226,7 @@ func buildTestInventory() *v1alpha1.Inventory {
 			Infra: v1alpha1.Infra{
 				TotalHosts:       2,
 				TotalDatacenters: &totalDatacenters,
-				Datastores:       []v1alpha1.Datastore{},
+				Datastores:       datastores,
 				Networks:         []v1alpha1.Network{},
 				HostPowerStates:  map[string]int{"poweredOn": 2},
 			},
