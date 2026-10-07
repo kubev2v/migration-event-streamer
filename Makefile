@@ -14,6 +14,9 @@ vendor:
 build:
 	go build $(LD_FLAGS) -o bin/streamer main.go
 
+generate:
+	go generate ./internal/config
+
 build.producer:
 	go build -o bin/producer $(PWD)/samples/producer/main.go
 
@@ -136,4 +139,4 @@ e2e: build.e2e
 e2e.clean:
 	-podman rm -f e2e-streamer-test-postgres e2e-streamer-test-kafka e2e-streamer-test-elasticsearch e2e-streamer-test-planner e2e-streamer-test-streamer 2>/dev/null
 
-.PHONY: vendor build run tidy tidy-check format check-format test lint check-golangci-lint-version build.e2e e2e e2e.clean
+.PHONY: vendor build generate run tidy tidy-check format check-format test lint check-golangci-lint-version build.e2e e2e e2e.clean
