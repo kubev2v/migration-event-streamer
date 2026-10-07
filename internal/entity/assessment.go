@@ -30,6 +30,7 @@ type Assessment struct {
 	AssessmentID                string  `json:"assessment_id"`
 	Name                        string  `json:"name"`
 	OrgID                       string  `json:"org_id"`
+	OrgName                     string  `json:"org_name,omitempty"`
 	Username                    string  `json:"username"`
 	SourceType                  string  `json:"source_type"`
 	PartnerID                   *string `json:"partner_id,omitempty"`
@@ -59,6 +60,7 @@ type AssessmentOS struct {
 	VMCount      int     `json:"vm_count"`
 	Username     string  `json:"username"`
 	OrgID        string  `json:"org_id"`
+	OrgName      string  `json:"org_name,omitempty"`
 	PartnerID    *string `json:"partner_id,omitempty"`
 	Status       string  `json:"status"`
 	CreatedAt    string  `json:"created_at"`
@@ -77,6 +79,7 @@ type AssessmentDatastore struct {
 	FreeCapacityGB  int     `json:"free_capacity_gb"`
 	Username        string  `json:"username"`
 	OrgID           string  `json:"org_id"`
+	OrgName         string  `json:"org_name,omitempty"`
 	PartnerID       *string `json:"partner_id,omitempty"`
 	Status          string  `json:"status"`
 	CreatedAt       string  `json:"created_at"`
