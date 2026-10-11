@@ -60,6 +60,7 @@ type AssessmentOS struct {
 	Username     string  `json:"username"`
 	OrgID        string  `json:"org_id"`
 	PartnerID    *string `json:"partner_id,omitempty"`
+	VCenterID    string  `json:"vcenter_id"`
 	Status       string  `json:"status"`
 	CreatedAt    string  `json:"created_at"`
 	DeletedAt    *string `json:"deleted_at,omitempty"`
@@ -78,6 +79,7 @@ type AssessmentDatastore struct {
 	Username        string  `json:"username"`
 	OrgID           string  `json:"org_id"`
 	PartnerID       *string `json:"partner_id,omitempty"`
+	VCenterID       string  `json:"vcenter_id"`
 	Status          string  `json:"status"`
 	CreatedAt       string  `json:"created_at"`
 	DeletedAt       *string `json:"deleted_at,omitempty"`
@@ -100,7 +102,7 @@ func NewAssessment(id, name, orgID, username, sourceType, status string, created
 }
 
 // NewAssessmentOS creates a new AssessmentOS entity
-func NewAssessmentOS(assessmentID, snapshotID, osType string, vmCount int, username, orgID, status string, createdAt time.Time) *AssessmentOS {
+func NewAssessmentOS(assessmentID, vcenterId, snapshotID, osType string, vmCount int, username, orgID, status string, createdAt time.Time) *AssessmentOS {
 	hash := sha256.Sum256([]byte(osType))
 
 	return &AssessmentOS{
@@ -112,13 +114,14 @@ func NewAssessmentOS(assessmentID, snapshotID, osType string, vmCount int, usern
 		VMCount:      vmCount,
 		Username:     username,
 		OrgID:        orgID,
+		VCenterID:    vcenterId,
 		Status:       status,
 		CreatedAt:    createdAt.Format(time.RFC3339),
 	}
 }
 
 // NewAssessmentDatastore creates a new AssessmentDatastore entity
-func NewAssessmentDatastore(assessmentID, snapshotID string, datastoreIndex int, datastoreType string, totalCapGB, freeCapGB int, username, orgID, status string, createdAt time.Time) *AssessmentDatastore {
+func NewAssessmentDatastore(assessmentID, vcenterId, snapshotID string, datastoreIndex int, datastoreType string, totalCapGB, freeCapGB int, username, orgID, status string, createdAt time.Time) *AssessmentDatastore {
 	return &AssessmentDatastore{
 		Index:           DatastoreIndex,
 		ID:              fmt.Sprintf("%s_%d", snapshotID, datastoreIndex),
@@ -130,6 +133,7 @@ func NewAssessmentDatastore(assessmentID, snapshotID string, datastoreIndex int,
 		FreeCapacityGB:  freeCapGB,
 		Username:        username,
 		OrgID:           orgID,
+		VCenterID:       vcenterId,
 		Status:          status,
 		CreatedAt:       createdAt.Format(time.RFC3339),
 	}
