@@ -50,8 +50,8 @@ func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.Assessmen
 
 	return entity.AssessmentCreatedResult{
 		Assessment: *doc,
-		OSEntries:  buildOSEntries(assessment, inventory),
-		Datastores: buildDatastoreEntries(assessment, inventory),
+		OSEntries:  buildOSEntries(assessment, inventory, inventory.VcenterId),
+		Datastores: buildDatastoreEntries(assessment, inventory, inventory.VcenterId),
 	}, nil
 }
 
@@ -65,7 +65,7 @@ func AssessmentDeletedProcessor(_ context.Context, event plannerEvents.Assessmen
 	}, nil
 }
 
-func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory) []entity.AssessmentOS {
+func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory, vcenterId string) []entity.AssessmentOS {
 	osCounts := make(map[string]int)
 	if inventory.Vcenter != nil && inventory.Vcenter.Vms.OsInfo != nil {
 		for osType, info := range *inventory.Vcenter.Vms.OsInfo {
@@ -77,6 +77,7 @@ func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.
 	for osType, count := range osCounts {
 		doc := entity.NewAssessmentOS(
 			assessment.ID,
+			vcenterId,
 			fmt.Sprintf("%d", assessment.SnapshotID),
 			osType,
 			count,
@@ -94,7 +95,7 @@ func buildOSEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.
 	return entries
 }
 
-func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory) []entity.AssessmentDatastore {
+func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1alpha1.Inventory, vcenterId string) []entity.AssessmentDatastore {
 	var entries []entity.AssessmentDatastore
 	datastoreIndex := 0
 
@@ -102,6 +103,7 @@ func buildDatastoreEntries(assessment plannerEvents.AssessmentData, inventory v1
 		for _, datastore := range cluster.Infra.Datastores {
 			doc := entity.NewAssessmentDatastore(
 				assessment.ID,
+				vcenterId,
 				fmt.Sprintf("%d", assessment.SnapshotID),
 				datastoreIndex,
 				datastore.Type,
