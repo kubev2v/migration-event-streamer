@@ -24,6 +24,7 @@ const (
 func NewInitCommand(cfg *config.Configuration) *cobra.Command {
 	var routerInputTopic string
 	var aclPrincipal string
+	var bootstrap bool
 
 	initCmd := &cobra.Command{
 		Use:   "init",
@@ -40,6 +41,14 @@ func NewInitCommand(cfg *config.Configuration) *cobra.Command {
 				return err
 			}
 			defer adm.Close()
+
+			if bootstrap {
+				// Run this only once during the initial bootstrap to grant full permissions to the admin
+				zap.S().Infow("granting admin ACLs", "principal", cfg.Kafka.SASLPassword)
+				if err := pkgkafka.GrantAdminACL(ctx, adm, cfg.Kafka.SASLUsername); err != nil {
+					return err
+				}
+			}
 
 			zap.S().Infow("ensuring input topic exists", "topic", routerInputTopic)
 			if err := pkgkafka.EnsureTopic(ctx, adm, routerInputTopic, inputTopicPartitions, inputTopicReplicationFactor); err != nil {
@@ -76,6 +85,7 @@ func NewInitCommand(cfg *config.Configuration) *cobra.Command {
 	initCmd.Flags().StringVar(&routerInputTopic, "router-input-topic", "", "Shared input topic")
 	_ = initCmd.MarkFlagRequired("router-input-topic")
 	initCmd.Flags().StringVar(&aclPrincipal, "acl-principal", "", "Kafka principal (SASL username) to grant read access on the managed topics and consumer groups")
+	initCmd.Flags().BoolVar(&bootstrap, "bootstrap", false, "Grant admin ACLs during initial Kafka bootstrap")
 
 	cobraflags.CobraOnInitialize("STREAMER", initCmd)
 
