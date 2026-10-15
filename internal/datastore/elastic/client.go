@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/kubev2v/migration-event-streamer/internal/config"
-	opensearch "github.com/opensearch-project/opensearch-go/v4"
-	opensearchapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
+	opensearch "github.com/opensearch-project/opensearch-go/v5"
+	opensearchapi "github.com/opensearch-project/opensearch-go/v5/opensearchapi"
 	"go.uber.org/zap"
 )
 

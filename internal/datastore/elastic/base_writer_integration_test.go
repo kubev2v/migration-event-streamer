@@ -11,7 +11,7 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
+	"github.com/opensearch-project/opensearch-go/v5/opensearchapi"
 	"go.uber.org/zap"
 )
 

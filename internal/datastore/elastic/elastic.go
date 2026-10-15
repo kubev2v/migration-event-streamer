@@ -6,7 +6,7 @@ import (
 
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/namespace"
-	opensearchapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
+	opensearchapi "github.com/opensearch-project/opensearch-go/v5/opensearchapi"
 )
 
 type ElasticRepository struct {
