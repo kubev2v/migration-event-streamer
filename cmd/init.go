@@ -44,7 +44,7 @@ func NewInitCommand(cfg *config.Configuration) *cobra.Command {
 
 			if bootstrap {
 				// Run this only once during the initial bootstrap to grant full permissions to the admin
-				zap.S().Infow("granting admin ACLs", "principal", cfg.Kafka.SASLPassword)
+				zap.S().Infow("granting admin ACLs", "principal", cfg.Kafka.SASLUsername)
 				if err := pkgkafka.GrantAdminACL(ctx, adm, cfg.Kafka.SASLUsername); err != nil {
 					return err
 				}

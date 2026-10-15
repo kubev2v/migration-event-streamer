@@ -31,6 +31,9 @@ parameters:
     value: "true"
   - name: STREAMER_KAFKA_SASL_ENABLED
     value: "true"
+  - name: STREAMER_BOOTSTRAP
+    value: "false"
+    description: "Grant admin ACLs during initial Kafka bootstrap"
   - name: STREAMER_ROUTER_INPUT_TOPIC
     required: true
     description: "Shared input topic for the router consumer"
@@ -59,6 +62,8 @@ objects:
               command: [ "/app/streamer" ]
               args: [ "init", "--router-input-topic", "${STREAMER_ROUTER_INPUT_TOPIC}" ]
               env:
+                - name: STREAMER_BOOTSTRAP
+                  value: ${STREAMER_BOOTSTRAP}
                 - name: STREAMER_KAFKA_BROKERS
                   valueFrom:
                     secretKeyRef:
