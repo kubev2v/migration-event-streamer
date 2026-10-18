@@ -50,7 +50,7 @@ func (d *Datastore) WithKafkaConsumer(name string, kConfig config.Kafka, topic, 
 		if _, ok := d.kafkaConsumers[name]; ok {
 			return fmt.Errorf("failed to create kafka consumer with name %s. consumer already exists", name)
 		}
-		kc, err := kafka.NewConsumer(kConfig, topic, consumerGroupID)
+		kc, err := kafka.NewConsumer(kConfig, topic, consumerGroupID, name)
 		if err != nil {
 			return err
 		}

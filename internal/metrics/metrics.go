@@ -6,119 +6,100 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+func init() {
+	prometheus.MustRegister(received, completed, duration, retries, inFlight)
+}
+
 const (
-	subSystem                   = "assisted_migrations"
-	labelEventType              = "topic"
-	totalMessagesCount          = "messages_total_count"
-	totalProcessedMessagesCount = "messages_processed_total_count"
-	totalProcessingErrorsCount  = "processing_errors_total_count"
-	processingDuration          = "processing_duration_in_ms"
+	EventsReceivedTotal            = "streamer_events_received_total"
+	EventsCompletedTotal           = "streamer_events_completed_total"
+	EventProcessingDurationSeconds = "streamer_event_processing_duration_seconds"
+	RetriesTotal                   = "streamer_retries_total"
+	EventsInFlight                 = "streamer_events_in_flight"
+	LastSuccessTimestampSeconds    = "streamer_last_success_timestamp_seconds"
+
+	KafkaConsumerNamespace = "kafka_consumer"
+)
+
+const (
+	LabelStage     = "stage"
+	LabelEventType = "event_type"
+	LabelOutcome   = "outcome"
+	LabelConsumer  = "consumer"
+)
+
+const (
+	StageRouter     = "router"
+	StageDispatcher = "dispatcher"
+	StagePipeline   = "pipeline"
+
+	Success     = "success"
+	Failed      = "failed"
+	Invalid     = "invalid"
+	Unsupported = "unsupported"
+	Canceled    = "canceled"
 )
 
 var (
-	labels = []string{labelEventType}
+	eventTypes = make(map[string]struct{})
 
-	totalMessagesCountMetrics = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Subsystem: subSystem,
-			Name:      totalMessagesCount,
-			Help:      "number of messages received",
-		},
-		labels,
-	)
-
-	totalProcessedMessagesCountMetrics = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Subsystem: subSystem,
-			Name:      totalProcessedMessagesCount,
-			Help:      "number of processed messages",
-		},
-		labels,
-	)
-
-	totalProcessingErrorsCountMetrics = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Subsystem: subSystem,
-			Name:      totalProcessingErrorsCount,
-			Help:      "number of processing errors",
-		},
-		labels,
-	)
-
-	processingDurationMetrics = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Subsystem: subSystem,
-			Name:      processingDuration,
-			Help:      `processing duration in milliseconds`,
-			Buckets: []float64{
-				10.0,
-				30.0,
-				60.0,
-				120.0,
-				150.0,
-				180.0,
-				210.0,
-				240.0,
-				270.0,
-				300.0,
-				330.0,
-				360.0,
-				390.0,
-				420.0,
-				450.0,
-				480.0,
-				510.0,
-				540.0,
-				570.0,
-				600.0,
-				900.0,
-				1200.0,
-				1800.0,
-				2400.0,
-				3600.0,
-				4800.0,
-				7200.0,
-			},
-		},
-		labels,
-	)
+	received = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: EventsReceivedTotal,
+		Help: "Events accepted for processing by each stage, including invalid and unsupported events.",
+	}, []string{LabelStage})
+	completed = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: EventsCompletedTotal,
+		Help: "Logical events completed by stage and final outcome; retries are not separate events.",
+	}, []string{LabelStage, LabelEventType, LabelOutcome})
+	duration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    EventProcessingDurationSeconds,
+		Help:    "Time spent performing stage work, including pipeline decoding, retries, and retry delays.",
+		Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120},
+	}, []string{LabelStage, LabelEventType, LabelOutcome})
+	retries = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: RetriesTotal,
+		Help: "Additional processing attempts actually started after an initial failure.",
+	}, []string{LabelStage, LabelEventType})
+	inFlight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: EventsInFlight,
+		Help: "Events currently being processed by each stage, including retry delays.",
+	}, []string{LabelStage})
 )
 
-func IncreaseMessagesCount(eventType string) {
-	labels := prometheus.Labels{
-		labelEventType: eventType,
+// Begin records a logical event. Call the returned function once with its final
+// outcome when that stage's work completes: handoff for dispatcher, destination
+// write or failure handling for router and pipeline.
+func Begin(stage, name string) func(outcome string) {
+	start := time.Now()
+	received.WithLabelValues(stage).Inc()
+	inFlight.WithLabelValues(stage).Inc()
+
+	return callback(name, stage, start)
+}
+
+func Retry(stage, name string) {
+	retries.WithLabelValues(stage, eventType(name)).Inc()
+}
+
+// RegisterEventType admits a code-configured pipeline name as a metric label.
+// Unrecognized values from incoming events are grouped under "unknown".
+func RegisterEventType(name string) {
+	eventTypes[name] = struct{}{}
+}
+
+func eventType(name string) string {
+	if _, ok := eventTypes[name]; ok {
+		return name
 	}
-	totalMessagesCountMetrics.With(labels).Inc()
+	return "non-pipeline"
 }
 
-func IncreaseProcessedMessagesCount(eventType string) {
-	labels := prometheus.Labels{
-		labelEventType: eventType,
+func callback(name, stage string, start time.Time) func(string) {
+	return func(outcome string) {
+		eType := eventType(name)
+
+		completed.WithLabelValues(stage, eType, outcome).Inc()
+		duration.WithLabelValues(stage, eType, outcome).Observe(time.Since(start).Seconds())
+		inFlight.WithLabelValues(stage).Dec()
 	}
-	totalProcessedMessagesCountMetrics.With(labels).Inc()
-}
-
-func IncreaseErrorProcessingCount(eventType string) {
-	labels := prometheus.Labels{
-		labelEventType: eventType,
-	}
-	totalProcessingErrorsCountMetrics.With(labels).Inc()
-}
-
-func UpdateProcessingMetric(eventType string, elapsed time.Duration) {
-	labels := prometheus.Labels{
-		labelEventType: eventType,
-	}
-	processingDurationMetrics.With(labels).Observe(float64(elapsed.Milliseconds()))
-}
-
-func init() {
-	registerMetrics()
-}
-
-func registerMetrics() {
-	prometheus.MustRegister(totalMessagesCountMetrics)
-	prometheus.MustRegister(totalProcessingErrorsCountMetrics)
-	prometheus.MustRegister(totalProcessedMessagesCountMetrics)
-	prometheus.MustRegister(processingDurationMetrics)
 }

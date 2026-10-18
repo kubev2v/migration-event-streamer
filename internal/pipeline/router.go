@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -37,30 +38,37 @@ func (r *Router) Start(ctx context.Context) <-chan struct{} {
 				if !ok {
 					return
 				}
-				namespace := msg.Event.Context.GetSource()
-				ceType := msg.Event.Context.GetType()
-
-				topic := namespace + ".events"
-
-				data, err := json.Marshal(msg.Event)
-				if err != nil {
-					zap.S().Warnw("failed to marshal event", "event_type", ceType, "error", err)
-					close(msg.CommitCh)
-					continue
-				}
-
-				if err := r.writer.Write(ctx, topic, data); err != nil {
-					zap.S().Warnw("failed to write message", "event_type", ceType, "topic", topic, "error", err)
-					close(msg.CommitCh)
-					continue
-				}
-
-				zap.S().Infow("message routed", "type", ceType, "namespace", namespace, "topic", topic)
-				close(msg.CommitCh)
+				r.route(ctx, msg)
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 	return done
+}
+
+func (r *Router) route(ctx context.Context, msg entity.Message) {
+	defer close(msg.CommitCh)
+	ceType := msg.Event.Context.GetType()
+	finish := metrics.Begin(metrics.StageRouter, ExtractEntityAction(ceType))
+	outcome := metrics.Failed
+	defer func() { finish(outcome) }()
+
+	namespace := msg.Event.Context.GetSource()
+	topic := namespace + ".events"
+	data, err := json.Marshal(msg.Event)
+	if err != nil {
+		outcome = metrics.Invalid
+		zap.S().Warnw("failed to marshal event", "event_type", ceType, "error", err)
+		return
+	}
+	if err := r.writer.Write(ctx, topic, data); err != nil {
+		if ctx.Err() != nil {
+			outcome = metrics.Canceled
+		}
+		zap.S().Warnw("failed to write message", "event_type", ceType, "topic", topic, "error", err)
+		return
+	}
+	outcome = metrics.Success
+	zap.S().Infow("message routed", "type", ceType, "namespace", namespace, "topic", topic)
 }

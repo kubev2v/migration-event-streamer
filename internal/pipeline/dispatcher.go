@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -61,9 +62,11 @@ func (d *Dispatcher) Start(ctx context.Context) <-chan struct{} {
 				}
 				ceType := msg.Event.Context.GetType()
 				key := ExtractEntityAction(ceType)
+				finish := metrics.Begin(metrics.StageDispatcher, key)
 
 				entry, ok := d.pipelines[key]
 				if !ok {
+					finish(metrics.Unsupported)
 					zap.S().Warnw("no pipeline registered", "key", key, "event_type", ceType)
 					close(msg.CommitCh)
 					continue
@@ -72,10 +75,14 @@ func (d *Dispatcher) Start(ctx context.Context) <-chan struct{} {
 				job := entity.NewPipelineJob(msg.Event.Data())
 				select {
 				case entry.input <- job:
+					finish(metrics.Success)
 				case <-ctx.Done():
+					finish(metrics.Canceled)
 					return
 				}
 
+				// Handoff metrics end above. Keep waiting for actual processing
+				// completion before releasing the Kafka acknowledgement.
 				select {
 				case <-job.Done:
 				case <-ctx.Done():

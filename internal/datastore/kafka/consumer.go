@@ -9,6 +9,8 @@ import (
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/plugin/kprom"
 	"go.uber.org/zap"
@@ -16,11 +18,12 @@ import (
 
 type Consumer struct {
 	cl     *kgo.Client
+	role   string
 	cancel context.CancelFunc
 	done   chan struct{}
 }
 
-func NewConsumer(kConfig config.Kafka, topic, consumerGroupID string) (*Consumer, error) {
+func NewConsumer(kConfig config.Kafka, topic, consumerGroupID, role string) (*Consumer, error) {
 	clientID := kConfig.ClientID
 	if clientID == "" {
 		hostname, err := os.Hostname()
@@ -38,7 +41,10 @@ func NewConsumer(kConfig config.Kafka, topic, consumerGroupID string) (*Consumer
 		kgo.ConsumeTopics(topic),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 		kgo.BlockRebalanceOnPoll(),
-		kgo.WithHooks(kprom.NewMetrics("kafka_consumer")),
+		kgo.WithHooks(kprom.NewMetrics(metrics.KafkaConsumerNamespace,
+			kprom.Registerer(prometheus.DefaultRegisterer),
+			kprom.WithStaticLabel(prometheus.Labels{metrics.LabelConsumer: role}),
+		)),
 	}
 
 	opts = append(opts, kConfig.ConnKgoOpts()...)
@@ -48,7 +54,7 @@ func NewConsumer(kConfig config.Kafka, topic, consumerGroupID string) (*Consumer
 		return nil, fmt.Errorf("failed to create kafka consumer: %w", err)
 	}
 
-	return &Consumer{cl: cl}, nil
+	return &Consumer{cl: cl, role: role}, nil
 }
 
 func (c *Consumer) Consume(ctx context.Context, messages chan entity.Message) error {
@@ -81,7 +87,9 @@ func (c *Consumer) Consume(ctx context.Context, messages chan entity.Message) er
 			r := records[0]
 
 			var event cloudevents.Event
+
 			if err := json.Unmarshal(r.Value, &event); err != nil {
+				metrics.Begin(c.role, "unknown")(metrics.Invalid)
 				zap.S().Warnw("failed to unmarshal cloudevent", "error", err, "topic", r.Topic, "offset", r.Offset)
 				c.cl.MarkCommitRecords(r)
 				c.cl.AllowRebalance()
@@ -89,7 +97,13 @@ func (c *Consumer) Consume(ctx context.Context, messages chan entity.Message) er
 			}
 
 			msg := entity.NewMessage(event)
-			messages <- msg
+
+			select {
+			case messages <- msg:
+			case <-consumerCtx.Done():
+				c.cl.AllowRebalance()
+				return
+			}
 
 			select {
 			case <-msg.CommitCh:
