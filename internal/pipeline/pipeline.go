@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
+	"github.com/kubev2v/migration-event-streamer/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -22,6 +23,8 @@ type Pipeline[T any, S any] struct {
 }
 
 func NewPipeline[T any, S any](name string, process Processor[T, S], write WriteFn[S], input <-chan entity.PipelineJob, errors chan<- entity.PipelineError) *Pipeline[T, S] {
+	metrics.RegisterEventType(name)
+
 	p := &Pipeline[T, S]{
 		name:   name,
 		input:  input,
@@ -50,16 +53,7 @@ func (p *Pipeline[T, S]) Start(ctx context.Context) <-chan struct{} {
 				if !ok {
 					return
 				}
-				var payload T
-				if err := json.Unmarshal(job.Data, &payload); err != nil {
-					p.sendError(err)
-					close(job.Done)
-					continue
-				}
-				if err := p.handle(ctx, payload); err != nil {
-					p.sendError(err)
-				}
-				close(job.Done)
+				p.processJob(ctx, job)
 			case <-ctx.Done():
 				return
 			}
@@ -74,6 +68,9 @@ func (p *Pipeline[T, S]) WithRetry(maxRetries int, baseDelay time.Duration) *Pip
 		var err error
 		delay := baseDelay
 		for attempt := range maxRetries + 1 {
+			if attempt > 0 {
+				metrics.Retry(metrics.StagePipeline, p.name)
+			}
 			if err = previous(ctx, input); err == nil {
 				return nil
 			}
@@ -110,15 +107,6 @@ func (p *Pipeline[T, S]) WithRetry(maxRetries int, baseDelay time.Duration) *Pip
 	return p
 }
 
-func (p *Pipeline[T, S]) WithObservability() *Pipeline[T, S] {
-	previous := p.handle
-	p.handle = func(ctx context.Context, input T) error {
-		// TODO add observability function
-		return previous(ctx, input)
-	}
-	return p
-}
-
 func (p *Pipeline[T, S]) WithRecovery() *Pipeline[T, S] {
 	previous := p.handle
 	p.handle = func(ctx context.Context, input T) (err error) {
@@ -134,6 +122,27 @@ func (p *Pipeline[T, S]) WithRecovery() *Pipeline[T, S] {
 		return previous(ctx, input)
 	}
 	return p
+}
+
+func (p *Pipeline[T, S]) processJob(ctx context.Context, job entity.PipelineJob) {
+	defer close(job.Done)
+	outcome := metrics.Failed
+	finish := metrics.Begin(metrics.StagePipeline, p.name)
+	defer func() { finish(outcome) }()
+	var payload T
+	if err := json.Unmarshal(job.Data, &payload); err != nil {
+		outcome = metrics.Invalid
+		p.sendError(err)
+		return
+	}
+	if err := p.handle(ctx, payload); err != nil {
+		if ctx.Err() != nil {
+			outcome = metrics.Canceled
+		}
+		p.sendError(err)
+		return
+	}
+	outcome = metrics.Success
 }
 
 func (p *Pipeline[T, S]) sendError(err error) {
