@@ -26,7 +26,6 @@ func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.Assessmen
 	var osEntities []entity.AssessmentOS
 	var datastoreEntities []entity.AssessmentDatastore
 
-	snapshotID := fmt.Sprintf("%d", assessment.SnapshotID)
 	doc := entity.NewAssessment(
 		assessment.ID,
 		assessment.Name,
@@ -35,7 +34,6 @@ func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.Assessmen
 		assessment.SourceType,
 		entity.ActiveStatus,
 		assessment.CreatedAt,
-		snapshotID,
 		inventory.VcenterId,
 	)
 	doc.PartnerID = assessment.PartnerID
@@ -84,7 +82,6 @@ func buildOSEntries(assessment *entity.Assessment, osInfo map[string]v1alpha1.Os
 		doc := entity.NewAssessmentOS(
 			assessment.AssessmentID,
 			assessment.VCenterID,
-			assessment.SnapshotID,
 			osType,
 			info.Count,
 			assessment.Username,
@@ -111,7 +108,6 @@ func buildDatastoreEntries(assessment *entity.Assessment, datastores []v1alpha1.
 		doc := entity.NewAssessmentDatastore(
 			assessment.AssessmentID,
 			assessment.VCenterID,
-			assessment.SnapshotID,
 			datastoreIndex,
 			datastore.Type,
 			datastore.TotalCapacityGB,
