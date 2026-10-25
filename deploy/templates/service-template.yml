@@ -185,3 +185,20 @@ objects:
                 limits:
                   cpu: 500m
                   memory: 256Mi
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      labels:
+        app: migration-event-streamer
+        port: metrics
+      annotations:
+        description: Expose the migration event streamer metrics endpoint
+      name: migration-event-streamer-metrics
+    spec:
+      selector:
+        app: migration-event-streamer
+      ports:
+        - name: metrics
+          port: ${{STREAMER_METRICS_PORT}}
+          protocol: TCP
+          targetPort: metrics
