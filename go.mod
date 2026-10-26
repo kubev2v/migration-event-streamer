@@ -149,6 +149,7 @@ require (
 	github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.15.0 // indirect
 	github.com/ulikunitz/xz v0.5.17 // indirect
+	github.com/varlink/go v0.4.1-0.20261015173642-c935be0c53f7 // indirect
 	github.com/vbatts/tar-split v0.12.3 // indirect
 	github.com/vbauerster/cupwriter v0.0.5 // indirect
 	github.com/vbauerster/mpb/v8 v8.15.2 // indirect
@@ -163,7 +164,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.podman.io/buildah v1.45.2 // indirect
 	go.podman.io/image/v5 v5.41.2 // indirect
-	go.podman.io/storage v1.64.2 // indirect
+	go.podman.io/storage v1.65.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
