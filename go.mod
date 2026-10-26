@@ -20,7 +20,7 @@ require (
 	github.com/twmb/franz-go v1.22.2
 	github.com/twmb/franz-go/pkg/kadm v1.19.0
 	github.com/twmb/franz-go/plugin/kprom v1.5.0
-	go.podman.io/common v0.69.2
+	go.podman.io/common v0.70.0
 	go.podman.io/podman/v6 v6.1.3
 	go.uber.org/zap v1.28.0
 )
@@ -132,7 +132,7 @@ require (
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.11.1 // indirect
-	github.com/sigstore/fulcio v1.8.7 // indirect
+	github.com/sigstore/fulcio v1.8.8 // indirect
 	github.com/sigstore/protobuf-specs v0.5.2 // indirect
 	github.com/sigstore/sigstore v1.10.11 // indirect
 	github.com/sirupsen/logrus v1.10.2 // indirect
@@ -149,9 +149,10 @@ require (
 	github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.15.0 // indirect
 	github.com/ulikunitz/xz v0.5.17 // indirect
+	github.com/varlink/go v0.4.1-0.20261015173642-c935be0c53f7 // indirect
 	github.com/vbatts/tar-split v0.12.3 // indirect
 	github.com/vbauerster/cupwriter v0.0.5 // indirect
-	github.com/vbauerster/mpb/v8 v8.15.2 // indirect
+	github.com/vbauerster/mpb/v8 v8.16.2 // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
@@ -162,8 +163,8 @@ require (
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.podman.io/buildah v1.45.2 // indirect
-	go.podman.io/image/v5 v5.41.2 // indirect
-	go.podman.io/storage v1.64.2 // indirect
+	go.podman.io/image/v5 v5.42.0 // indirect
+	go.podman.io/storage v1.65.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
