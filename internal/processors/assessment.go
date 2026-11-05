@@ -29,7 +29,7 @@ func AssessmentCreatedProcessor(_ context.Context, event events.AssessmentEventP
 		assessment.SourceType,
 		entity.ActiveStatus,
 		assessment.CreatedAt,
-		assessment.MainInventory.VcenterId,
+		assessment.MainInventory.Id,
 	)
 	doc.PartnerID = assessment.PartnerID
 	doc.PartnerName = assessment.PartnerName

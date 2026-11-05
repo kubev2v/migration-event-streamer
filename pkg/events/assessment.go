@@ -31,7 +31,6 @@ type Inventory struct {
 	CreatedAt      time.Time     `json:"created_at,omitzero"`
 	Data           InventoryData `json:"data"`
 	Id             string        `json:"id"`
-	VcenterId      string        `json:"vcenter_id"`
 	VcenterVersion string        `json:"vcenter_version,omitempty"`
 }
 
