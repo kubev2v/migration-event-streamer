@@ -152,7 +152,7 @@ require (
 	github.com/varlink/go v0.4.1-0.20261015173642-c935be0c53f7 // indirect
 	github.com/vbatts/tar-split v0.12.3 // indirect
 	github.com/vbauerster/cupwriter v0.0.5 // indirect
-	github.com/vbauerster/mpb/v8 v8.15.2 // indirect
+	github.com/vbauerster/mpb/v8 v8.16.3 // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
