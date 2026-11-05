@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
-	plannerEvents "github.com/kubev2v/migration-planner/pkg/events/kafka"
+	"github.com/kubev2v/migration-event-streamer/pkg/events"
 	"go.uber.org/zap"
 )
 
-func PartnerCustomerProcessor(_ context.Context, event plannerEvents.PartnerCustomerEventPayload) (entity.PartnerCustomer, error) {
+func PartnerCustomerProcessor(_ context.Context, event events.PartnerCustomerEventPayload) (entity.PartnerCustomer, error) {
 	pc := event.PartnerCustomer
 
 	zap.S().Infow("processing partner_customer event",

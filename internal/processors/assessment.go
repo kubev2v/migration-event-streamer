@@ -2,29 +2,24 @@ package processors
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/kubev2v/migration-event-streamer/internal/entity"
-	"github.com/kubev2v/migration-planner/api/v1alpha1"
-	plannerEvents "github.com/kubev2v/migration-planner/pkg/events/kafka"
+	"github.com/kubev2v/migration-event-streamer/pkg/events"
 	"go.uber.org/zap"
 )
 
-func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.AssessmentEventPayload) (entity.AssessmentCreatedResult, error) {
+func AssessmentCreatedProcessor(_ context.Context, event events.AssessmentEventPayload) (entity.AssessmentCreatedResult, error) {
 	assessment := event.Assessment
 
 	zap.S().Infow("processing assessment created event",
 		"assessment_id", assessment.ID)
-	var inventory v1alpha1.Inventory
-	if err := json.Unmarshal(assessment.Inventory, &inventory); err != nil {
-		return entity.AssessmentCreatedResult{}, fmt.Errorf("failed to unmarshal inventory: %w", err)
-	}
 
 	var osEntities []entity.AssessmentOS
 	var datastoreEntities []entity.AssessmentDatastore
+
+	inventory := assessment.MainInventory
 
 	doc := entity.NewAssessment(
 		assessment.ID,
@@ -34,7 +29,7 @@ func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.Assessmen
 		assessment.SourceType,
 		entity.ActiveStatus,
 		assessment.CreatedAt,
-		inventory.VcenterId,
+		assessment.MainInventory.VcenterId,
 	)
 	doc.PartnerID = assessment.PartnerID
 	doc.PartnerName = assessment.PartnerName
@@ -42,20 +37,17 @@ func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.Assessmen
 	doc.OrgName = orgName
 	doc.OrgType = assessment.OrgType
 
-	TotalClusters := len(inventory.Clusters)
-	if inventory.Vcenter != nil {
-		doc.TotalClusters = &TotalClusters
-		doc.TotalDatacenters = inventory.Vcenter.Infra.TotalDatacenters
-		doc.TotalHosts = inventory.Vcenter.Infra.TotalHosts
-		doc.TotalVMs = inventory.Vcenter.Vms.Total
-		doc.TotalMigratable = inventory.Vcenter.Vms.TotalMigratable
-		doc.TotalMigratableWithWarnings = inventory.Vcenter.Vms.TotalMigratableWithWarnings
-		doc.TotalWithSharedDisks = inventory.Vcenter.Vms.TotalWithSharedDisks
-		datastoreEntities = buildDatastoreEntries(doc, inventory.Vcenter.Infra.Datastores)
-	}
+	doc.TotalClusters = &inventory.Data.Infra.TotalClusters
+	doc.TotalDatacenters = inventory.Data.Infra.TotalDatacenters
+	doc.TotalHosts = inventory.Data.Infra.TotalHosts
+	doc.TotalVMs = inventory.Data.Vms.Total
+	doc.TotalMigratable = inventory.Data.Vms.TotalMigratable
+	doc.TotalMigratableWithWarnings = inventory.Data.Vms.TotalMigratableWithWarnings
+	doc.TotalWithSharedDisks = inventory.Data.Vms.TotalWithSharedDisks
+	datastoreEntities = buildDatastoreEntries(doc, inventory.Data.Infra.Datastores)
 
-	if inventory.Vcenter != nil && inventory.Vcenter.Vms.OsInfo != nil {
-		osEntities = buildOSEntries(doc, *inventory.Vcenter.Vms.OsInfo)
+	if inventory.Data.Vms.OsInfo != nil {
+		osEntities = buildOSEntries(doc, inventory.Data.Vms.OsInfo)
 	}
 
 	return entity.AssessmentCreatedResult{
@@ -65,7 +57,7 @@ func AssessmentCreatedProcessor(_ context.Context, event plannerEvents.Assessmen
 	}, nil
 }
 
-func AssessmentDeletedProcessor(_ context.Context, event plannerEvents.AssessmentEventPayload) (entity.AssessmentDeletedResult, error) {
+func AssessmentDeletedProcessor(_ context.Context, event events.AssessmentEventPayload) (entity.AssessmentDeletedResult, error) {
 	zap.S().Infow("processing assessment deleted event",
 		"assessment_id", event.Assessment.ID)
 
@@ -75,7 +67,7 @@ func AssessmentDeletedProcessor(_ context.Context, event plannerEvents.Assessmen
 	}, nil
 }
 
-func buildOSEntries(assessment *entity.Assessment, osInfo map[string]v1alpha1.OsInfo) []entity.AssessmentOS {
+func buildOSEntries(assessment *entity.Assessment, osInfo map[string]events.OsInfo) []entity.AssessmentOS {
 	entries := make([]entity.AssessmentOS, 0, len(osInfo))
 
 	for osType, info := range osInfo {
@@ -100,7 +92,7 @@ func buildOSEntries(assessment *entity.Assessment, osInfo map[string]v1alpha1.Os
 	return entries
 }
 
-func buildDatastoreEntries(assessment *entity.Assessment, datastores []v1alpha1.Datastore) []entity.AssessmentDatastore {
+func buildDatastoreEntries(assessment *entity.Assessment, datastores []events.Datastore) []entity.AssessmentDatastore {
 	var entries []entity.AssessmentDatastore
 	datastoreIndex := 0
 

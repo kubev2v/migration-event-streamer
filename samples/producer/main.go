@@ -11,7 +11,7 @@ import (
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/uuid"
 	"github.com/kubev2v/migration-event-streamer/internal/logger"
-	plannerEvents "github.com/kubev2v/migration-planner/pkg/events/kafka"
+	"github.com/kubev2v/migration-event-streamer/pkg/kafka"
 	"go.uber.org/zap"
 )
 
@@ -20,7 +20,7 @@ const (
 	visitorEventType           = "assisted.migration.user_action.visited"
 	partnerCustomerEventType   = "assisted.migration.partner_customer.updated"
 	userActionEventType        = "assisted.migration.user_action.assessment_shared"
-	inputTopic                 = "assisted.migration.events"
+	inputTopic                 = "assisted.migration.kafka"
 	eventSource                = "migration-planner" // Same as the planner default when not recognizing namespace
 )
 
@@ -60,7 +60,7 @@ func main() {
 		zap.S().Fatal(err)
 	}
 
-	producer, err := plannerEvents.NewKafkaProducer([]string{"127.0.0.1:9092"})
+	producer, err := kafka.NewKafkaProducer([]string{"127.0.0.1:9092"})
 	if err != nil {
 		zap.S().Fatalf("failed to create producer: %s", err)
 	}

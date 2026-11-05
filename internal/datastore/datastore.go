@@ -7,7 +7,7 @@ import (
 	"github.com/kubev2v/migration-event-streamer/internal/config"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/elastic"
 	"github.com/kubev2v/migration-event-streamer/internal/datastore/kafka"
-	plannerEvents "github.com/kubev2v/migration-planner/pkg/events/kafka"
+	pkgkafka "github.com/kubev2v/migration-event-streamer/pkg/kafka"
 	"go.uber.org/zap"
 )
 
@@ -17,13 +17,13 @@ type Datastore struct {
 	buildFns       []buildFn
 	elasticRepo    *elastic.ElasticRepository
 	kafkaConsumers map[string]*kafka.Consumer
-	kafkaProducers map[string]*plannerEvents.KafkaProducer
+	kafkaProducers map[string]*pkgkafka.KafkaProducer
 }
 
 func NewDatastore() *Datastore {
 	return &Datastore{
 		kafkaConsumers: make(map[string]*kafka.Consumer),
-		kafkaProducers: make(map[string]*plannerEvents.KafkaProducer),
+		kafkaProducers: make(map[string]*pkgkafka.KafkaProducer),
 	}
 }
 
@@ -69,7 +69,7 @@ func (d *Datastore) WithKafkaProducer(name string, kConfig config.Kafka) *Datast
 
 		opts := kConfig.ConnKgoOpts()
 
-		kp, err := plannerEvents.NewKafkaProducer(kConfig.Brokers, opts...)
+		kp, err := pkgkafka.NewKafkaProducer(kConfig.Brokers, opts...)
 		if err != nil {
 			return err
 		}
@@ -100,7 +100,7 @@ func (d *Datastore) GetConsumer(name string) (*kafka.Consumer, error) {
 	return nil, fmt.Errorf("consumer %s not found", name)
 }
 
-func (d *Datastore) GetProducer(name string) (*plannerEvents.KafkaProducer, error) {
+func (d *Datastore) GetProducer(name string) (*pkgkafka.KafkaProducer, error) {
 	if p, ok := d.kafkaProducers[name]; ok {
 		return p, nil
 	}
@@ -115,7 +115,7 @@ func (d *Datastore) MustHaveConsumer(name string) *kafka.Consumer {
 	return c
 }
 
-func (d *Datastore) MustHaveProducer(name string) *plannerEvents.KafkaProducer {
+func (d *Datastore) MustHaveProducer(name string) *pkgkafka.KafkaProducer {
 	p, err := d.GetProducer(name)
 	if err != nil {
 		panic(err)
