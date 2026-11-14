@@ -18,7 +18,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.1.0
 	github.com/twmb/franz-go v1.22.3
-	github.com/twmb/franz-go/pkg/kadm v1.19.0
+	github.com/twmb/franz-go/pkg/kadm v1.20.0
 	github.com/twmb/franz-go/plugin/kprom v1.5.0
 	go.podman.io/common v0.69.2
 	go.podman.io/podman/v6 v6.1.3
